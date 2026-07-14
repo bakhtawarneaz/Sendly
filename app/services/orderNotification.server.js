@@ -87,8 +87,7 @@ export async function processOrderNotification({ shop, store, order, serviceKey,
     return;
   }
 
-    // Message delay — queue for later instead of sending now.
-  // The `_delayed` flag prevents an infinite loop when the job re-enters.
+  // Message delay — queue for later instead of sending now.
   const delayMinutes = parseInt(config.delayMinutes || "0");
   if (delayMinutes > 0 && !opts.skipDelay) {
     const { orderMessageQueue } = await import("../queues/queues.server.js");

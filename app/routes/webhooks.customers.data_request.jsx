@@ -13,7 +13,6 @@ export const action = async ({ request }) => {
     const store = await prisma.store.findUnique({ where: { shopDomain: shop } });
     if (!store) return new Response();
 
-    // Collect all data we hold for this customer
     const where = { storeId: store.id };
     if (customerPhone) {
       where.customerPhone = { contains: customerPhone.replace(/[\s\-\+]/g, "").slice(-10) };
@@ -55,9 +54,6 @@ export const action = async ({ request }) => {
       },
     });
 
-    // Shopify requires the app to provide this data to the merchant
-    // within 30 days. Log it here — the merchant can be sent this
-    // export via the app's support channel.
     console.log(
       `📄 GDPR data request for ${shop} | phone: ${customerPhone} | email: ${customerEmail}`,
       JSON.stringify({ messageLogs, campaignOrders }, null, 2)

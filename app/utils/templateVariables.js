@@ -78,7 +78,6 @@ export const VARIABLE_FIELDS = [
     return fieldMap[key] || "";
   }
   
-  // Resolve template variables using variablesMap + order data
   export function resolveTemplateVariables(template, order, store, fulfillment = null) {
     const variablesMap = typeof template.variablesMap === "string" 
       ? JSON.parse(template.variablesMap) 

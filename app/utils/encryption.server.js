@@ -17,7 +17,6 @@ export function encrypt(plainText) {
   const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
   const encrypted = Buffer.concat([cipher.update(String(plainText), "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
-  // Format: iv:authTag:ciphertext (all hex)
   return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
 }
 
@@ -25,7 +24,6 @@ export function encrypt(plainText) {
 export function decrypt(encryptedText) {
   if (!encryptedText) return null;
 
-  // Not in our format (e.g. a legacy plaintext token) — return as-is
   const parts = String(encryptedText).split(":");
   if (parts.length !== 3) return encryptedText;
 

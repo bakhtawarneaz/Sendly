@@ -52,7 +52,6 @@ export async function loadMessageLogs(session, { page = 1, perPage = 10, status 
 
   return {
     logs: logs.map((l) => {
-      // Find the retry record (if this message failed and has one)
       const retry = l.retryQueues?.find((r) => r.status === "failed") || l.retryQueues?.[0] || null;
       return {
         id: String(l.id),

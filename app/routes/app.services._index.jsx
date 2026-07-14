@@ -154,31 +154,9 @@ export default function Services() {
                   {trialDaysLeft} days remaining
                 </div>
               </div>
-              {/* <div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", opacity: 0.9 }}>
-                  <span>Messages Used</span>
-                  <span>{trialMessagesUsed} / {trialMessageLimit}</span>
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: "10px", height: "12px", overflow: "hidden", marginTop: "8px" }}>
-                  <div
-                    style={{
-                      background: (trialMessagesUsed / trialMessageLimit) * 100 > 70
-                        ? "linear-gradient(90deg, #f59e0b, #ef4444)"
-                        : "linear-gradient(90deg, #4ade80, #22d3ee)",
-                      height: "100%", borderRadius: "10px",
-                      width: `${(trialMessagesUsed / trialMessageLimit) * 100}%`,
-                      transition: "width 0.5s ease",
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "4px" }}>
-                  {trialMessagesLeft} messages remaining in trial
-                </div>
-              </div> */}
               <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
                 {[
                   { value: trialDaysLeft, label: "Days Left" },
-                  // { value: trialMessagesLeft, label: "Messages Left" },
                   { value: activeServices.length, label: "Services Active" },
                   { value: "FREE", label: "Trial Active" },
                 ].map((item, i) => (

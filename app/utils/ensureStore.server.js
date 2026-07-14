@@ -1,10 +1,5 @@
 import prisma from "../db.server";
 
-/**
- * Get-or-create Store record for the authenticated shop.
- * On first creation, fetches shop details (name, email, phone, timezone,
- * currency) from Shopify so the Store row is fully populated.
- */
 export async function ensureStore(session, admin) {
   const shopDomain = session.shop;
 

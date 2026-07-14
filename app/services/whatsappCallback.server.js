@@ -5,18 +5,16 @@ import { sendTemplateMessage } from "./whatsappSender.server.js";
 import { resolveTemplateVariables } from "../utils/templateVariables.js";
 import { buildVarArray } from "./message.server.js";
 
-// Map the tapped button text -> action (confirm/cancel) using the template's buttons
 function resolveAction(template, buttonText) {
   const buttons = Array.isArray(template?.buttons) ? template.buttons : [];
   const match = buttons.find((b) => (b.text || "").trim() === (buttonText || "").trim());
-  return match?.action || null; // "confirm" | "cancel" | null
+  return match?.action || null; 
 }
 
 export async function processButtonReply({ contextMessageId, buttonText }) {
   console.log("🔔 Callback:", { contextMessageId, buttonText });
   if (!contextMessageId) return;
 
-  // Find the original outbound message by its WhatsApp message id (wamid)
   const log = await prisma.messageLog.findFirst({
     where: { metadata: { path: ["whatsappMessageId"], equals: contextMessageId } },
     include: { store: true, service: true },
@@ -24,7 +22,6 @@ export async function processButtonReply({ contextMessageId, buttonText }) {
   console.log("📋 Log found:", log ? `yes, order ${log.orderId}` : "NO");
   if (!log) return;
 
-  // Only order-confirmation messages carry confirm/cancel buttons
   if (log.service?.serviceKey !== "order_confirmation_whatsapp") return;
 
   const store = log.store;
@@ -69,13 +66,11 @@ export async function processButtonReply({ contextMessageId, buttonText }) {
     console.error("❌ Tag update failed:", e.message); 
   }
 
-  // Update the log with the customer's response
   await prisma.messageLog.update({
     where: { id: log.id },
     data: { customerResponse: action === "confirm" ? "confirmed" : "cancelled", respondedAt: new Date() },
   });
 
-  // Optional response template
   const sendResponse = action === "confirm" ? config.sendConfirmResponse : config.sendCancelResponse;
   const responseTemplateId = action === "confirm" ? config.confirmResponseTemplateId : config.cancelResponseTemplateId;
 

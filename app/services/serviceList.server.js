@@ -10,7 +10,6 @@ export async function loadServicesList(session) {
   });
 
   if (!store) {
-    // Should not happen — ensureStore runs on app load — but guard anyway
     return {
       services: [],
       activeServices: [],

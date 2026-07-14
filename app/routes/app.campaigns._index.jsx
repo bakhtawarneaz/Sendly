@@ -1,5 +1,5 @@
 import { useLoaderData, useNavigate, useFetcher, useSearchParams } from "react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { loadCampaigns, deleteCampaign, toggleCampaignStatus } from "../services/campaignService.server.js";

@@ -182,7 +182,6 @@ export default function CreateTemplate() {
     setBody(body.substring(0, start) + formatted + body.substring(end));
   };
 
-  // Shopify Files upload via /api/upload
   const handleDropZoneDrop = useCallback(async (_dropFiles, acceptedFiles) => {
     const file = acceptedFiles[0];
     if (!file) return;

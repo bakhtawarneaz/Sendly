@@ -83,7 +83,6 @@ export default function MessageLogs() {
   );
   const hasDateFilter = !!(initialDateFrom && initialDateTo);
 
-  // Selection for bulk retry — only failed+retryable rows selectable
   const retryableLogs = logs.filter((l) => l.canRetry);
   const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
     useIndexResourceState(retryableLogs);
@@ -156,7 +155,6 @@ export default function MessageLogs() {
   };
 
   const handleBulkRetry = () => {
-    // selectedResources are messageLog ids; map to their retryIds
     const retryIds = logs.filter((l) => selectedResources.includes(l.id) && l.retryId).map((l) => l.retryId);
     if (retryIds.length === 0) return;
     const form = new FormData();

@@ -12,11 +12,8 @@ export const action = async ({ request }) => {
       return new Response();
     }
 
-    // Cascading deletes handle messageLogs, templates, storeServices,
-    // retryQueues, campaigns, campaignOrders (see schema onDelete: Cascade)
     await prisma.store.delete({ where: { id: store.id } });
 
-    // Sessions aren't tied to Store, remove them explicitly
     await prisma.session.deleteMany({ where: { shop } });
 
     console.log(`🗑️  GDPR shop redact complete for ${shop} — all data deleted`);

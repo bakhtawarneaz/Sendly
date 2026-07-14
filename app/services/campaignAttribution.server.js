@@ -1,4 +1,3 @@
-// ==================== CAMPAIGN ATTRIBUTION ====================
 import prisma from "../db.server";
 
 function extractCampaignCode(landingSite) {
@@ -37,7 +36,7 @@ export async function attributeOrderToCampaign(order, store) {
     const orderDate = new Date(order.created_at);
     const campaignStart = new Date(campaign.startDate);
     const campaignEnd = new Date(campaign.endDate);
-    campaignEnd.setHours(23, 59, 59, 999); // include the whole end day
+    campaignEnd.setHours(23, 59, 59, 999); 
 
     if (orderDate < campaignStart) return { attributed: false, reason: "Order placed before campaign start" };
     if (orderDate > campaignEnd) return { attributed: false, reason: "Order placed after campaign end" };

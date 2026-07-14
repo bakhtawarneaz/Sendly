@@ -1,6 +1,3 @@
-// ==================== SHOPIFY FILES MEDIA UPLOAD ====================
-
-// Step 1: Create staged upload target
 async function createStagedUpload(admin, filename, mimeType, fileSize) {
     const response = await admin.graphql(
       `#graphql
@@ -37,7 +34,6 @@ async function createStagedUpload(admin, filename, mimeType, fileSize) {
     return result.stagedTargets[0];
   }
   
-  // Step 2: Upload file bytes to the staged target
   async function uploadToStagedTarget(target, fileBuffer, filename, mimeType) {
     const form = new FormData();
     for (const param of target.parameters) {
@@ -56,7 +52,6 @@ async function createStagedUpload(admin, filename, mimeType, fileSize) {
     }
   }
   
-  // Step 3: Register the file in Shopify Files and get the CDN URL
   async function createShopifyFile(admin, resourceUrl, mimeType) {
     const contentType = mimeType.startsWith("image/")
       ? "IMAGE"
@@ -94,13 +89,11 @@ async function createStagedUpload(admin, filename, mimeType, fileSize) {
   
     const file = result.files[0];
     const fileId = file.id;
-  
-    // File processing is async on Shopify — poll until URL is ready
+
     const url = await pollFileUrl(admin, fileId);
     return url;
   }
   
-  // Poll for the processed file URL (Shopify processes uploads asynchronously)
   async function pollFileUrl(admin, fileId, maxAttempts = 10) {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const response = await admin.graphql(
@@ -127,7 +120,6 @@ async function createStagedUpload(admin, filename, mimeType, fileSize) {
         if (url) return url;
       }
   
-      // Wait 1s before next poll
       await new Promise((r) => setTimeout(r, 1000));
     }
   

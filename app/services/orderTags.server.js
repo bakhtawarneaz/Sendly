@@ -38,7 +38,6 @@ async function setOrderTags(shop, token, orderGid, tags) {
   if (errs?.length) throw new Error(errs[0].message);
 }
 
-// Add newTag, remove removeTag (keeps latest action reflected)
 export async function updateOrderTag(shop, orderId, newTag, removeTag) {
   const token = await getAdminToken(shop);
   if (!token) throw new Error("No admin token");

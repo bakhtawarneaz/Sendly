@@ -2,7 +2,6 @@ import { Worker } from "bullmq";
 import connection from "../queues/connection.server.js";
 import { processAbandonedCartJob } from "../services/abandonedCart.server.js";
 
-// Singleton — the worker must start only once, even across hot reloads
 let worker = globalThis.__sendlyAbandonedCartWorker;
 
 if (!worker) {

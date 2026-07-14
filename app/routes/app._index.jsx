@@ -110,14 +110,10 @@ export default function Dashboard() {
             <div>
               <div style={{ fontSize: "16px", fontWeight: "700" }}>🚀 Free Trial Active</div>
               <div style={{ fontSize: "13px", opacity: 0.8, marginTop: "4px" }}>Try all services free — no credit card required</div>
-              {/* <div style={{ marginTop: "8px", fontSize: "12px", opacity: 0.6 }}>
-                Messages Used: {trialMessagesUsed} / {trialMessageLimit}
-              </div> */}
             </div>
             <div style={{ display: "flex", gap: "20px" }}>
               {[
                 { value: trialDaysLeft, label: "Days Left" },
-                // { value: trialMessagesLeft, label: "Messages Left" },
                 { value: activeServices, label: "Services Active" },
                 { value: "FREE", label: "Trial Active" },
               ].map((item, i) => (

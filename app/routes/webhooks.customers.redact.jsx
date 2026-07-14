@@ -12,7 +12,6 @@ export const action = async ({ request }) => {
     const store = await prisma.store.findUnique({ where: { shopDomain: shop } });
     if (!store) return new Response();
 
-    // Build the matcher — phone or the specific orders Shopify listed
     const filters = [];
     if (customerPhone) {
       const last10 = customerPhone.replace(/[\s\-\+]/g, "").slice(-10);
@@ -29,8 +28,6 @@ export const action = async ({ request }) => {
 
     const where = { storeId: store.id, OR: filters };
 
-    // Anonymise message logs (keep the row for aggregate stats,
-    // strip everything that identifies the customer)
     const redacted = await prisma.messageLog.updateMany({
       where,
       data: {
@@ -41,7 +38,6 @@ export const action = async ({ request }) => {
       },
     });
 
-    // Delete campaign attribution rows for this customer
     const campaignFilters = [];
     if (customerPhone) {
       const last10 = customerPhone.replace(/[\s\-\+]/g, "").slice(-10);
@@ -58,7 +54,6 @@ export const action = async ({ request }) => {
       });
     }
 
-    // Remove any retry queue rows holding the customer's phone
     if (customerPhone) {
       const last10 = customerPhone.replace(/[\s\-\+]/g, "").slice(-10);
       await prisma.retryQueue.deleteMany({

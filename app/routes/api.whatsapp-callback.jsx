@@ -13,7 +13,6 @@ export const loader = async ({ request }) => {
   return new Response("Forbidden", { status: 403 });
 };
 
-// POST — incoming messages / button replies
 export const action = async ({ request }) => {
   try {
     const body = await request.json();
@@ -41,6 +40,5 @@ export const action = async ({ request }) => {
     console.warn("Callback error:", e.message);
   }
 
-  // Always 200 so Meta doesn't retry endlessly
   return new Response("OK", { status: 200 });
 };

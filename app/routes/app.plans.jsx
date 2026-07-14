@@ -8,7 +8,6 @@ import { Page, Toast, Frame, Box, Banner } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
-  // Sync with Shopify on every visit (e.g. after returning from approval)
   await syncSubscriptionStatus(admin, session);
   return await loadPlansPage(session);
 };

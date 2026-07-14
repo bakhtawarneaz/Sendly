@@ -33,7 +33,6 @@ export const action = async ({ request }) => {
   try {
     const event = payload;
 
-    // Only act on "delivered" status
     if (String(event?.status || "").toLowerCase() !== "delivered") {
       console.log(`Fulfillment event status is "${event?.status}" — not delivered, skipping`);
       return new Response();

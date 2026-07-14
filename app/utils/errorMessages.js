@@ -1,11 +1,8 @@
 // ==================== WHATSAPP ERROR → HUMAN-READABLE ====================
-// Converts raw Meta API errors into simple messages with guidance
-// for the store owner. Returns { message, action, fixable }.
 
 export function humanizeWhatsappError(rawError = "") {
     const err = String(rawError || "").toLowerCase();
   
-    // Token / auth issues — owner can fix
     if (err.includes("access token") || err.includes("#190") || err.includes("oauth") || err.includes("expired")) {
       return {
         message: "WhatsApp connection expired or invalid.",
@@ -14,7 +11,6 @@ export function humanizeWhatsappError(rawError = "") {
       };
     }
   
-    // Recipient not on WhatsApp / not in allowed list — owner CANNOT fix
     if (err.includes("131030") || err.includes("not in allowed list") || err.includes("recipient")) {
       return {
         message: "This number can't receive WhatsApp messages (not registered on WhatsApp, or not in your test list).",
@@ -23,7 +19,6 @@ export function humanizeWhatsappError(rawError = "") {
       };
     }
   
-    // Invalid phone number format
     if (err.includes("invalid") && err.includes("phone")) {
       return {
         message: "The customer's phone number format is invalid.",
@@ -32,7 +27,6 @@ export function humanizeWhatsappError(rawError = "") {
       };
     }
   
-    // Template issues — owner can fix
     if (err.includes("132000") || err.includes("132001") || err.includes("template") || err.includes("does not exist")) {
       return {
         message: "The message template is not approved or doesn't match Meta's records.",
@@ -41,7 +35,6 @@ export function humanizeWhatsappError(rawError = "") {
       };
     }
   
-    // Rate limit — owner can retry later
     if (err.includes("rate") || err.includes("131056") || err.includes("too many")) {
       return {
         message: "Too many messages were sent in a short time.",
@@ -50,7 +43,6 @@ export function humanizeWhatsappError(rawError = "") {
       };
     }
   
-    // 24-hour window (for non-template messages)
     if (err.includes("131047") || err.includes("re-engagement") || err.includes("outside")) {
       return {
         message: "Message couldn't be sent due to WhatsApp's messaging window.",
@@ -59,7 +51,6 @@ export function humanizeWhatsappError(rawError = "") {
       };
     }
   
-    // Media issues
     if (err.includes("media") || err.includes("image") || err.includes("download")) {
       return {
         message: "There was a problem with the product image or media in the message.",
@@ -68,7 +59,6 @@ export function humanizeWhatsappError(rawError = "") {
       };
     }
   
-    // Fallback — unknown error
     return {
       message: rawError ? `Message failed: ${rawError}` : "Message failed to send.",
       action: "Try resending. If it keeps failing, check your WhatsApp connection in Settings.",

@@ -17,7 +17,6 @@ export const action = async ({ request }) => {
     const store = await getStoreWithServices(shop);
     if (!store) return new Response();
 
-    // Campaign attribution (runs even if WhatsApp isn't connected)
     try {
       const { attributeOrderToCampaign } = await import("../services/campaignAttribution.server.js");
       const result = await attributeOrderToCampaign(order, store);

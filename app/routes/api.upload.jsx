@@ -12,7 +12,6 @@ export const action = async ({ request }) => {
       return Response.json({ success: false, error: "No file provided" }, { status: 400 });
     }
 
-    // Size guard — 15MB
     const MAX_SIZE = 15 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return Response.json({ success: false, error: "File too large (max 15MB)" }, { status: 400 });

@@ -23,7 +23,6 @@ export async function subscribeToPlan(admin, session) {
   const store = await getStore(session);
   if (!store) return { success: false, error: "Store not found" };
 
-  // Don't give trial days again if the store already used its trial
   const trialDays = store.trialStartDate ? 0 : PLAN.trialDays;
 
   try {
@@ -71,8 +70,6 @@ export async function subscribeToPlan(admin, session) {
 }
 
 // ==================== SYNC SUBSCRIPTION STATUS ====================
-// Called after the merchant returns from Shopify's approval page,
-// and on app load, to keep our DB in sync with Shopify's truth.
 export async function syncSubscriptionStatus(admin, session) {
   const store = await getStore(session);
   if (!store) return;
