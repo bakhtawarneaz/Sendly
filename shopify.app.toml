@@ -1,0 +1,68 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "e797d97773fed28411845015d598a3f4"
+application_url = "https://example.com"
+embedded = true
+name = "Sendly"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_files,read_orders,write_orders,read_checkouts,read_discounts,read_products,read_fulfillments"
+
+
+
+  [webhooks]
+  api_version = "2026-10"
+
+  [webhooks.privacy_compliance]
+  customer_data_request_url = "/webhooks/customers/data_request"
+  customer_deletion_url = "/webhooks/customers/redact"
+  shop_deletion_url = "/webhooks/shop/redact"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/create"
+  topics = [ "orders/create" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/paid"
+  topics = [ "orders/paid" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/cancelled"
+  topics = [ "orders/cancelled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/fulfillments/create"
+  topics = [ "fulfillments/create" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/fulfillment-events/create"
+  topics = [ "fulfillment_events/create" ]
+
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/checkouts/create"
+  topics = [ "checkouts/create" ]
+  
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/checkouts/update"
+  topics = [ "checkouts/update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/subscriptions/update"
+  topics = [ "app_subscriptions/update" ]
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth" ]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

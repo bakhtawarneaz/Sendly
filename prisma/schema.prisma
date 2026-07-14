@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== SHOPIFY SESSION ====================
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// ==================== STORE ====================
+model Store {
+  id                 BigInt          @id @default(autoincrement())
+  shopDomain         String          @unique
+  shopName           String?
+  email              String?
+  phone              String?
+  currency           String?         @default("USD")
+  timezone           String?
+
+  trialStartDate     DateTime?
+  trialEndDate       DateTime?
+  isTrialActive      Boolean         @default(true)
+
+  billingPlan        String          @default("none")
+  billingStatus      String          @default("trial")
+  shopifyChargeId    String?
+
+  whatsappApiToken   String?
+  whatsappPhoneId    String?
+  whatsappBusinessId String?
+  whatsappConnected  Boolean         @default(false)
+
+  isActive           Boolean         @default(true)
+  installedAt        DateTime        @default(now())
+  uninstalledAt      DateTime?
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  storeServices      StoreService[]
+  messageLogs        MessageLog[]
+  templates          Template[]
+  retryQueues        RetryQueue[]
+  campaigns          Campaign[]
+  campaignOrders     CampaignOrder[]
+}
+
+// ==================== SERVICE ====================
+model Service {
+  id            BigInt          @id @default(autoincrement())
+  serviceKey    String          @unique
+  name          String
+  description   String?
+  isActive      Boolean         @default(true)
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  storeServices StoreService[]
+  messageLogs   MessageLog[]
+}
+
+// ==================== STORE SERVICE ====================
+model StoreService {
+  id         BigInt          @id @default(autoincrement())
+  storeId    BigInt
+  serviceId  BigInt
+  isEnabled  Boolean         @default(false)
+  enabledAt  DateTime?
+  disabledAt DateTime?
+
+  templateId BigInt?
+  config     Json?
+
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  service    Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, serviceId])
+}
+
+// ==================== MESSAGE LOG ====================
+model MessageLog {
+  id               BigInt          @id @default(autoincrement())
+  storeId          BigInt
+  serviceId        BigInt
+  orderId          String?
+  orderName        String?
+  customerPhone    String?
+  customerName     String?
+
+  messageType      String
+  templateName     String?
+  status           String          @default("pending")
+  direction        String          @default("outbound")
+
+  customerResponse String?
+  respondedAt      DateTime?
+
+  errorMessage     String?
+  metadata         Json?
+
+  sentAt           DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  store            Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  service          Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  retryQueues      RetryQueue[]
+
+  @@index([storeId, createdAt])
+  @@index([storeId, serviceId])
+  @@index([status])
+}
+
+// ==================== TEMPLATE ====================
+model Template {
+  id              BigInt          @id @default(autoincrement())
+  storeId         BigInt
+
+  name            String
+  displayName     String?
+  type            String
+  language        String          @default("en")
+  status          String          @default("draft")
+
+  metaTemplateId  String?
+  rejectionReason String?
+
+  headerType      String?
+  headerText      String?
+  headerMediaUrl  String?
+  body            String
+  footer          String?
+
+  buttons         Json?
+  variablesMap    Json?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, name, language])
+  @@index([status])
+}
+
+// ==================== RETRY QUEUE ====================
+model RetryQueue {
+  id            BigInt          @id @default(autoincrement())
+  storeId       BigInt
+  messageLogId  BigInt
+  orderId       String?
+  orderName     String?
+  customerPhone String
+  templateName  String?
+  serviceKey    String?
+
+  status        String          @default("failed")
+  retryCount    Int             @default(0)
+  maxRetries    Int             @default(5)
+  errorMessage  String?
+  lastRetriedAt DateTime?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  store         Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  messageLog    MessageLog      @relation(fields: [messageLogId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  @@index([messageLogId])
+}
+
+// ==================== CAMPAIGN ====================
+model Campaign {
+  id             BigInt          @id @default(autoincrement())
+  storeId        BigInt
+  campaignName   String
+  campaignCode   String
+  targetUrl      String
+  trackingUrl    String
+  startDate      DateTime
+  endDate        DateTime
+  status         String          @default("active")
+  notes          String?
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  campaignOrders CampaignOrder[]
+
+  @@unique([storeId, campaignCode])
+  @@index([storeId, status])
+}
+
+// ==================== CAMPAIGN ORDER ====================
+model CampaignOrder {
+  id              BigInt          @id @default(autoincrement())
+  campaignId      BigInt
+  storeId         BigInt
+  shopifyOrderId  String
+  orderNumber     String?
+  customerPhone   String?
+  customerName    String?
+  revenue         Decimal         @default(0) @db.Decimal(12, 2)
+  currency        String          @default("USD")
+  attributionType String          @default("utm")
+  attributedAt    DateTime?
+  orderData       Json?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  campaign        Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, shopifyOrderId])
+  @@index([campaignId])
+  @@index([storeId])
+}
+
+
+// ==================== WebhookEvent ====================
+model WebhookEvent {
+  id         String   @id
+  topic      String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
