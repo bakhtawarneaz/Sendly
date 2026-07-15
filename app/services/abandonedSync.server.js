@@ -64,6 +64,14 @@ function buildCartItems(node) {
   }));
 }
 
+const REMINDER_NUMBER_MAP = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5 };
+function keyToReminderNumber(key) {
+  const k = String(key || "").toLowerCase().trim();
+  if (REMINDER_NUMBER_MAP[k]) return REMINDER_NUMBER_MAP[k];
+  const digits = Number(k.replace(/\D/g, ""));
+  return Number.isFinite(digits) && digits > 0 ? digits : 1;
+}
+
 // ==================== SYNC ONE STORE ====================
 async function syncStore(store, admin) {
   const storeService = await prisma.storeService.findFirst({
@@ -246,7 +254,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
   for (const [key, reminder] of Object.entries(reminders)) {
     if (!reminder.enabled) continue;
 
-    const reminderNumber = Number(String(key).replace(/\D/g, "")) || 1;
+    const reminderNumber = keyToReminderNumber(key);
     const delayMs = parseDelayToMs(reminder.delay || "30_min");
 
     const exists = await prisma.abandonedReminder.findUnique({
