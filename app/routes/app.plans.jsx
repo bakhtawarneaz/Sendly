@@ -44,7 +44,6 @@ const FEATURES = [
   "Campaign UTM Tracking",
   "WhatsApp Chat Button",
   "Unlimited message templates",
-  "Unlimited messages",
   "Message logs & retry",
   "Analytics dashboard",
   "Priority support",
