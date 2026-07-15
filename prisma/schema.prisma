@@ -65,7 +65,6 @@ model Store {
   campaigns          Campaign[]
   campaignOrders     CampaignOrder[]
   abandonedCheckouts AbandonedCheckout[]
-  abandonedReminders AbandonedReminder[]
 }
 
 // ==================== SERVICE ====================
