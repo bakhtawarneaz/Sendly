@@ -64,14 +64,6 @@ function buildCartItems(node) {
   }));
 }
 
-const REMINDER_NUMBER_MAP = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5 };
-function keyToReminderNumber(key) {
-  const k = String(key || "").toLowerCase().trim();
-  if (REMINDER_NUMBER_MAP[k]) return REMINDER_NUMBER_MAP[k];
-  const digits = Number(k.replace(/\D/g, ""));
-  return Number.isFinite(digits) && digits > 0 ? digits : 1;
-}
-
 // ==================== SYNC ONE STORE ====================
 async function syncStore(store, admin) {
   const storeService = await prisma.storeService.findFirst({
@@ -93,7 +85,7 @@ async function syncStore(store, admin) {
   if (!hasEnabledReminder) return { skipped: true, reason: "no_reminders", synced: 0 };
 
   const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const searchQuery = `created_at:>='${sinceIso}'`;
+  const searchQuery = `created_at:>='${sinceIso}' AND status:open`;
 
   let synced = 0;
   let skipped = 0;
@@ -112,6 +104,7 @@ async function syncStore(store, admin) {
 
     for (const { node } of connection.edges) {
       try {
+        // already converted? skip
         if (node.completedAt) {
           skipped++;
           continue;
@@ -143,15 +136,29 @@ async function syncStore(store, admin) {
           continue;
         }
 
+        if (!existing) {
+          const recentlyRecovered = await prisma.abandonedCheckout.findFirst({
+            where: {
+              storeId: store.id,
+              customerPhone: phone,
+              status: "recovered",
+              recoveredAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            },
+          });
+          if (recentlyRecovered) {
+            skipped++;
+            continue;
+          }
+        }
+
         const customerName = node.customer
           ? `${node.customer.firstName || ""} ${node.customer.lastName || ""}`.trim()
           : "Guest";
         const cartItems = buildCartItems(node);
         const cartTotal = node.totalPriceSet?.presentmentMoney?.amount || "0";
-        const currency = node.totalPriceSet?.presentmentMoney?.currencyCode || store.currency || "PKR";
+        const currency = node.totalPriceSet?.presentmentMoney?.currencyCode || store.currency || "USD";
 
         if (existing) {
-
           if (existing.status === "pending" || existing.status === "reminded") {
             await prisma.abandonedCheckout.update({
               where: { id: existing.id },
@@ -196,7 +203,6 @@ async function syncStore(store, admin) {
 }
 
 // ==================== SHARED: UPSERT CHECKOUT + SCHEDULE REMINDERS ====================
-
 export async function upsertCheckoutAndSchedule({ store, storeService, reminders, expiryDays, checkout, source }) {
   const createdAtMs = new Date(checkout.createdAt || Date.now()).getTime();
   const expiresAt = new Date((isNaN(createdAtMs) ? Date.now() : createdAtMs) + expiryDays * 24 * 60 * 60 * 1000);
@@ -244,7 +250,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
     checkoutId: record.shopifyCheckoutId || "",
     checkoutUrl: record.recoveryUrl || "",
     totalPrice: String(record.cartTotal ?? "0"),
-    currency: record.currency || store.currency || "PKR",
+    currency: record.currency || store.currency || "USD",
     lineItems: record.cartItems || [],
     createdAt: checkout.createdAt,
     expiryDays,
@@ -254,22 +260,13 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
   for (const [key, reminder] of Object.entries(reminders)) {
     if (!reminder.enabled) continue;
 
-    const reminderNumber = keyToReminderNumber(key);
+    const reminderNumber = Number(String(key).replace(/\D/g, "")) || 1;
     const delayMs = parseDelayToMs(reminder.delay || "30_min");
 
     const exists = await prisma.abandonedReminder.findUnique({
       where: { abandonedCheckoutId_reminderNumber: { abandonedCheckoutId: record.id, reminderNumber } },
     });
     if (exists) continue;
-
-    let templateName = null;
-    if (reminder.templateId) {
-      const tpl = await prisma.template.findUnique({
-        where: { id: BigInt(reminder.templateId) },
-        select: { name: true, displayName: true },
-      });
-      templateName = tpl?.displayName || tpl?.name || null;
-    }
 
     const job = await abandonedCartQueue.add(
       `reminder-${key}`,
@@ -299,7 +296,6 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
         bullmqJobId: job.id ? String(job.id) : null,
         scheduledAt: new Date(Date.now() + delayMs),
         status: "scheduled",
-        templateName,
       },
     });
     scheduled++;
