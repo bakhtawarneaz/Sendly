@@ -11,20 +11,35 @@ function resolveAction(template, buttonText) {
   return match?.action || null; 
 }
 
-export async function processButtonReply({ contextMessageId, buttonText }) {
+export async function processButtonReply({ contextMessageId, buttonText, phoneNumberId = null }) {
   console.log("🔔 Callback:", { contextMessageId, buttonText });
   if (!contextMessageId) return;
 
+  let store = null;
+  if (phoneNumberId) {
+    store = await prisma.store.findFirst({
+      where: { whatsappPhoneId: phoneNumberId },
+    });
+  }
+
   const log = await prisma.messageLog.findFirst({
-    where: { metadata: { path: ["whatsappMessageId"], equals: contextMessageId } },
+    where: {
+      metadata: { path: ["whatsappMessageId"], equals: contextMessageId },
+      ...(store ? { storeId: store.id } : {}),
+    },
     include: { store: true, service: true },
   });
-  console.log("📋 Log found:", log ? `yes, order ${log.orderId}` : "NO");
   if (!log) return;
+
+  if (!store) store = log.store;
+
+  if (store && log.store && String(store.id) !== String(log.storeId)) {
+    console.warn("Callback store mismatch — ignoring");
+    return;
+  }
 
   if (log.service?.serviceKey !== "order_confirmation_whatsapp") return;
 
-  const store = log.store;
   const shop = store.shopDomain;
 
   const storeService = await prisma.storeService.findUnique({

@@ -20,17 +20,20 @@ export const action = async ({ request }) => {
 
     for (const entry of entries) {
       for (const change of entry.changes || []) {
+        const phoneNumberId = change.value?.metadata?.phone_number_id || null;
         const messages = change.value?.messages || [];
         for (const msg of messages) {
           if (msg.type === "button") {
             await processButtonReply({
               contextMessageId: msg.context?.id,
               buttonText: msg.button?.text,
+              phoneNumberId,
             });
           } else if (msg.type === "interactive" && msg.interactive?.type === "button_reply") {
             await processButtonReply({
               contextMessageId: msg.context?.id,
               buttonText: msg.interactive.button_reply?.title,
+              phoneNumberId,
             });
           }
         }
