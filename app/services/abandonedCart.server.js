@@ -29,8 +29,11 @@ async function hasPlacedOrder(store, checkoutToken) {
 
 // ==================== HELPERS: keep AbandonedReminder + checkout in sync ====================
 
+const REMINDER_NUMBER_MAP = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5 };
 function reminderNumberFromKey(reminderKey) {
-  const n = Number(String(reminderKey || "").replace(/\D/g, ""));
+  const k = String(reminderKey || "").toLowerCase().trim();
+  if (REMINDER_NUMBER_MAP[k]) return REMINDER_NUMBER_MAP[k];
+  const n = Number(k.replace(/\D/g, ""));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
