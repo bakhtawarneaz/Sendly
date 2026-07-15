@@ -27,12 +27,12 @@ export const loader = async ({ request }) => {
   });
 };
 
-
+// Chart palette aligned to Polaris semantic colors
 const CHART = {
-  total: "#5c6ac4",  
-  sent: "#008060",    
-  error: "#d72c0d",   
-  bar: "#2c6ecb",     
+  total: "#5c6ac4",   // indigo (neutral series)
+  sent: "#008060",    // Polaris success green
+  error: "#d72c0d",   // Polaris critical red
+  bar: "#2c6ecb",     // Polaris interactive blue
   grid: "#e3e3e3",
   axis: "#8c9196",
 };
@@ -53,6 +53,29 @@ const STATUS_TONE = {
   failed: "critical",
   pending: "attention",
 };
+
+// Colored icon tile — subtle background using Polaris tokens (review-safe)
+function IconTile({ source, bg, fg, size = 40 }) {
+  const inner = Math.round(size / 2);
+  return (
+    <div
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        borderRadius: "10px",
+        background: bg || "var(--p-color-bg-surface-secondary)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ width: `${inner}px`, height: `${inner}px`, color: fg || "var(--p-color-icon)" }}>
+        <Icon source={source} />
+      </span>
+    </div>
+  );
+}
 
 export default function Analytics() {
   const { summary, serviceStats, dailyStats, messagesByType, recentMessages, quickStats, dateFrom, dateTo } = useLoaderData();
@@ -116,11 +139,11 @@ export default function Analytics() {
   };
 
   const quickActions = [
-    { label: "Manage services", sub: `${quickStats.activeServices} active`, path: "/app/services", ic: SettingsIcon },
-    { label: "Templates", sub: `${quickStats.approvedTemplates} approved`, path: "/app/templates", ic: NoteIcon },
-    { label: "Message logs", sub: `${quickStats.allTimeMessages} total`, path: "/app/message-logs", ic: ListBulletedIcon },
-    { label: "Campaigns", sub: `${quickStats.activeCampaigns} active`, path: "/app/campaigns", ic: MegaphoneIcon },
-    { label: "Settings", sub: quickStats.whatsappConnected ? "Connected" : "Not connected", path: "/app/settings", ic: SettingsIcon },
+    { label: "Manage services", sub: `${quickStats.activeServices} active`, path: "/app/services", ic: SettingsIcon, bg: "var(--p-color-bg-surface-info)", fg: "var(--p-color-icon-info)" },
+    { label: "Templates", sub: `${quickStats.approvedTemplates} approved`, path: "/app/templates", ic: NoteIcon, bg: "var(--p-color-bg-surface-success)", fg: "var(--p-color-icon-success)" },
+    { label: "Message logs", sub: `${quickStats.allTimeMessages} total`, path: "/app/message-logs", ic: ListBulletedIcon, bg: "var(--p-color-bg-surface-magic)", fg: "var(--p-color-icon-magic)" },
+    { label: "Campaigns", sub: `${quickStats.activeCampaigns} active`, path: "/app/campaigns", ic: MegaphoneIcon, bg: "var(--p-color-bg-surface-warning)", fg: "var(--p-color-icon-warning)" },
+    { label: "Settings", sub: quickStats.whatsappConnected ? "Connected" : "Not connected", path: "/app/settings", ic: SettingsIcon, bg: "var(--p-color-bg-surface-caution)", fg: "var(--p-color-icon)" },
   ];
 
   const fmt = (n) => {
@@ -131,9 +154,9 @@ export default function Analytics() {
   };
 
   const summaryCards = [
-    { icon: ChatIcon, tone: "base", label: "Total messages", value: summary.totalMessages, sub: null },
-    { icon: CheckCircleIcon, tone: "success", label: "Successful", value: summary.successCount, sub: `${summary.successRate}%` },
-    { icon: AlertCircleIcon, tone: "critical", label: "Failed", value: summary.failedCount, sub: `${summary.failedRate}%` },
+    { icon: ChatIcon, bg: "var(--p-color-bg-surface-info)", fg: "var(--p-color-icon-info)", label: "Total messages", value: summary.totalMessages, sub: null },
+    { icon: CheckCircleIcon, bg: "var(--p-color-bg-surface-success)", fg: "var(--p-color-icon-success)", label: "Successful", value: summary.successCount, sub: `${summary.successRate}%` },
+    { icon: AlertCircleIcon, bg: "var(--p-color-bg-surface-critical)", fg: "var(--p-color-icon-critical)", label: "Failed", value: summary.failedCount, sub: `${summary.failedRate}%` },
   ];
 
   return (
@@ -189,9 +212,7 @@ export default function Analytics() {
               {summaryCards.map((c) => (
                 <Card key={c.label}>
                   <InlineStack gap="300" blockAlign="center">
-                    <Box>
-                      <Icon source={c.icon} tone={c.tone} />
-                    </Box>
+                    <IconTile source={c.icon} bg={c.bg} fg={c.fg} />
                     <BlockStack gap="0">
                       <Text as="span" variant="bodySm" tone="subdued">{c.label}</Text>
                       <InlineStack gap="100" blockAlign="baseline">
@@ -296,26 +317,30 @@ export default function Analytics() {
                   <Text as="h3" variant="headingMd">Quick actions</Text>
                   <BlockStack gap="200">
                     {quickActions.map((a) => (
-                      <Box
+                      <div
                         key={a.label}
-                        borderWidth="025"
-                        borderColor="border"
-                        borderRadius="200"
-                        padding="300"
+                        onClick={() => navigate(a.path)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(a.path)}
+                        style={{
+                          border: "1px solid var(--p-color-border)",
+                          borderRadius: "10px",
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          transition: "background 0.1s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--p-color-bg-surface-hover)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                       >
-                        <button
-                          onClick={() => navigate(a.path)}
-                          style={{ all: "unset", cursor: "pointer", display: "block", width: "100%" }}
-                        >
-                          <InlineStack gap="300" blockAlign="center">
-                            <Icon source={a.ic} tone="base" />
-                            <BlockStack gap="0">
-                              <Text as="span" variant="bodyMd" fontWeight="medium">{a.label}</Text>
-                              <Text as="span" variant="bodySm" tone="subdued">{a.sub}</Text>
-                            </BlockStack>
-                          </InlineStack>
-                        </button>
-                      </Box>
+                        <InlineStack gap="300" blockAlign="center" wrap={false}>
+                          <IconTile source={a.ic} bg={a.bg} fg={a.fg} size={36} />
+                          <BlockStack gap="0">
+                            <Text as="span" variant="bodyMd" fontWeight="medium">{a.label}</Text>
+                            <Text as="span" variant="bodySm" tone="subdued">{a.sub}</Text>
+                          </BlockStack>
+                        </InlineStack>
+                      </div>
                     ))}
                   </BlockStack>
                 </BlockStack>
@@ -345,9 +370,12 @@ export default function Analytics() {
                         <Box key={m.id}>
                           <Box paddingBlock="300">
                             <InlineStack gap="300" blockAlign="center" wrap={false}>
-                              <Box>
-                                <Icon source={SERVICE_ICONS[m.serviceKey] || NoteIcon} tone="base" />
-                              </Box>
+                              <IconTile
+                                source={SERVICE_ICONS[m.serviceKey] || NoteIcon}
+                                bg="var(--p-color-bg-surface-secondary)"
+                                fg="var(--p-color-icon)"
+                                size={34}
+                              />
                               <Box width="100%">
                                 <BlockStack gap="0">
                                   <InlineStack gap="150" blockAlign="center">

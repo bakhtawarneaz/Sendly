@@ -37,18 +37,45 @@ const HERO_FEATURES = [
     icon: EmailIcon,
     title: "Branded messages",
     desc: "Connect your WhatsApp Business account and message customers using your own brand name.",
+    bg: "var(--p-color-bg-surface-success)",
+    fg: "var(--p-color-icon-success)",
   },
   {
     icon: AutomationIcon,
     title: "Enable automation",
     desc: "Automatically send order confirmation, fulfillment and delivery updates — no manual work.",
+    bg: "var(--p-color-bg-surface-info)",
+    fg: "var(--p-color-icon-info)",
   },
   {
     icon: ChartVerticalIcon,
     title: "Track and analyze",
     desc: "Monitor delivery, track customer responses and measure performance in real time.",
+    bg: "var(--p-color-bg-surface-magic)",
+    fg: "var(--p-color-icon-magic)",
   },
 ];
+
+// Colored icon tile — subtle background using Polaris tokens (review-safe)
+function IconTile({ source, bg, fg }) {
+  return (
+    <div
+      style={{
+        width: "40px",
+        height: "40px",
+        borderRadius: "10px",
+        background: bg,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <span style={{ width: "20px", height: "20px", color: fg }}>
+        <Icon source={source} />
+      </span>
+    </div>
+  );
+}
 
 const BILLING_INFO = [
   { title: "App billing", text: "Subscription charges are billed through your Shopify account every 30 days." },
@@ -104,9 +131,7 @@ export default function Dashboard() {
                 <InlineGrid columns={{ xs: 1, sm: 1, md: 3 }} gap="400">
                   {HERO_FEATURES.map((f) => (
                     <BlockStack key={f.title} gap="200">
-                      <Box>
-                        <Icon source={f.icon} tone="base" />
-                      </Box>
+                      <IconTile source={f.icon} bg={f.bg} fg={f.fg} />
                       <Text as="h3" variant="headingSm">
                         {f.title}
                       </Text>
