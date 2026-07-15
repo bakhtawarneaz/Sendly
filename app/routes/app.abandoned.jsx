@@ -387,7 +387,7 @@ export default function Abandoned() {
                 <BlockStack gap="100">
                   <Text as="span" variant="headingSm">Message body</Text>
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                    <Text as="p" variant="bodyMd">{viewLog.messageBody || "—"}</Text>
+                    <Text as="p" variant="bodyMd" breakWord>{viewLog.messageBody || "—"}</Text>
                   </Box>
                 </BlockStack>
                 <BlockStack gap="100">
