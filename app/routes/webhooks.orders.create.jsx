@@ -11,11 +11,21 @@ export const action = async ({ request }) => {
     console.log(`⏭️  Duplicate webhook skipped: ${topic}`);
     return new Response();
   }
-  
+
   try {
     const order = payload;
     const store = await getStoreWithServices(shop);
     if (!store) return new Response();
+
+    try {
+      const { handleOrderRecovery } = await import("../services/abandonedRecovery.server.js");
+      const rec = await handleOrderRecovery(store, order);
+      if (rec.matched) {
+        console.log(`✅ Recovery matched for order ${order?.name} (${rec.viaReminder ? "reminder" : "self"})`);
+      }
+    } catch (error) {
+      console.warn("Recovery tracking error:", error.message);
+    }
 
     try {
       const { attributeOrderToCampaign } = await import("../services/campaignAttribution.server.js");

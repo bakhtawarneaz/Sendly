@@ -64,6 +64,8 @@ model Store {
   retryQueues        RetryQueue[]
   campaigns          Campaign[]
   campaignOrders     CampaignOrder[]
+  abandonedCheckouts AbandonedCheckout[]
+  abandonedReminders AbandonedReminder[]
 }
 
 // ==================== SERVICE ====================
@@ -242,6 +244,86 @@ model CampaignOrder {
   @@unique([campaignId, shopifyOrderId])
   @@index([campaignId])
   @@index([storeId])
+}
+
+// ==================== ABANDONED CHECKOUT ====================
+model AbandonedCheckout {
+  id                  BigInt              @id @default(autoincrement())
+  storeId             BigInt
+
+  // Shopify identifiers — token is the dedupe key
+  shopifyCheckoutId   String?
+  checkoutToken       String
+
+  // Customer snapshot (at time of abandonment)
+  customerName        String?
+  customerPhone       String?
+  customerEmail       String?
+
+  // Cart snapshot
+  cartItems           Json?
+  cartTotal           Decimal?            @default(0) @db.Decimal(12, 2)
+  currency            String?             @default("USD")
+  recoveryUrl         String?
+
+  // Lifecycle: pending | reminded | recovered | expired
+  status              String              @default("pending")
+  remindersSent       Int                 @default(0)
+  lastReminderAt      DateTime?
+  expiresAt           DateTime?
+
+  // Recovery attribution (filled when the customer completes an order)
+  recoveredAt         DateTime?
+  recoveredOrderId    String?
+  recoveredOrderTotal Decimal?            @db.Decimal(12, 2)
+
+  // How it was captured: webhook | sync
+  source              String              @default("webhook")
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  store               Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  reminders           AbandonedReminder[]
+
+  // one checkout token per store — lets us upsert on webhook + sync without dupes
+  @@unique([storeId, checkoutToken])
+  @@index([storeId, status])
+  @@index([storeId, createdAt])
+  @@index([status, expiresAt])
+}
+
+// ==================== ABANDONED REMINDER ====================
+model AbandonedReminder {
+  id                  BigInt              @id @default(autoincrement())
+  storeId             BigInt
+  abandonedCheckoutId BigInt
+
+  reminderNumber      Int
+  templateId          BigInt?
+  templateName        String?
+  discountCode        String?
+
+  // scheduled | processing | sent | failed | cancelled
+  status              String              @default("scheduled")
+
+  bullmqJobId         String?
+  whatsappMessageId   String?
+  messageBody         String?
+  errorMessage        String?
+
+  scheduledAt         DateTime?
+  sentAt              DateTime?
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  checkout            AbandonedCheckout   @relation(fields: [abandonedCheckoutId], references: [id], onDelete: Cascade)
+
+  // one row per reminder number per checkout — prevents double-scheduling
+  @@unique([abandonedCheckoutId, reminderNumber])
+  @@index([storeId, status])
+  @@index([abandonedCheckoutId])
 }
 
 

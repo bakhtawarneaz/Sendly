@@ -1,8 +1,8 @@
 import { authenticate } from "../shopify.server";
 import { getStoreWithServices } from "../utils/helpers.server.js";
 import { parseConfig } from "../services/order.server.js";
-import { parseDelayToMs } from "../utils/delay.js";
 import { canSendMessage } from "../utils/billing.server.js";
+import { upsertCheckoutAndSchedule } from "../services/abandonedSync.server.js";
 
 export const action = async ({ request }) => {
   const { payload, shop, topic } = await authenticate.webhook(request);
@@ -30,6 +30,10 @@ export const action = async ({ request }) => {
       return new Response();
     }
 
+    const recoveryUrl = checkout?.abandoned_checkout_url || "";
+    const checkoutToken = checkout?.token || "";
+    if (!checkoutToken) return new Response();
+
     for (const storeService of store.storeServices) {
       if (storeService.service.serviceKey !== "abandoned_checkout") continue;
 
@@ -43,50 +47,35 @@ export const action = async ({ request }) => {
         continue;
       }
 
-      const { abandonedCartQueue } = await import("../queues/queues.server.js");
+      const customerName = `${checkout?.billing_address?.first_name || ""} ${checkout?.billing_address?.last_name || ""}`.trim() || "Guest";
+      const lineItems = (checkout?.line_items || []).map((item) => ({
+        name: item.title || item.name,
+        quantity: item.quantity,
+        price: item.price,
+        productId: item.product_id ? String(item.product_id) : null,
+      }));
 
-      const checkoutData = {
-        storeId: String(store.id),
-        serviceId: String(storeService.service.id),
-        customerPhone,
-        customerName: `${checkout?.billing_address?.first_name || ""} ${checkout?.billing_address?.last_name || ""}`.trim(),
-        checkoutToken: checkout?.token || "",
-        checkoutId: String(checkout?.id || ""),
-        checkoutUrl: checkout?.abandoned_checkout_url || "",
-        totalPrice: checkout?.total_price || "0.00",
-        currency: checkout?.currency || store.currency || "PKR",
-        lineItems: (checkout?.line_items || []).map((item) => ({
-          name: item.title || item.name,
-          quantity: item.quantity,
-          price: item.price,
-          productId: item.product_id,
-        })),
-        createdAt: checkout?.created_at || new Date().toISOString(),
+      await upsertCheckoutAndSchedule({
+        store,
+        storeService,
+        reminders,
         expiryDays,
-      };
+        checkout: {
+          checkoutToken,
+          shopifyCheckoutId: String(checkout?.id || ""),
+          customerName,
+          customerPhone,
+          customerEmail: checkout?.email || checkout?.customer?.email || null,
+          cartItems: lineItems,
+          cartTotal: checkout?.total_price || "0",
+          currency: checkout?.currency || store.currency || "PKR",
+          recoveryUrl,
+          createdAt: checkout?.created_at || new Date().toISOString(),
+        },
+        source: "webhook",
+      });
 
-      for (const [key, reminder] of Object.entries(reminders)) {
-        if (!reminder.enabled) continue;
-
-        await abandonedCartQueue.add(
-          `reminder-${key}`,
-          {
-            ...checkoutData,
-            reminderKey: key,
-            templateId: reminder.templateId || "",
-            discountCode: reminder.discountCode || "",
-            includeImage: reminder.productImage || false,
-          },
-          {
-            delay: parseDelayToMs(reminder.delay || "30_min"),
-            attempts: 2,
-            backoff: { type: "exponential", delay: 60000 },
-            jobId: `${checkout?.token}-${key}`,
-          }
-        );
-
-        console.log(`⏳ Abandoned cart ${key} reminder queued (${reminder.delay}) for ${customerPhone}`);
-      }
+      console.log(`⏳ Abandoned checkout tracked + reminders queued for ${customerPhone}`);
     }
   } catch (error) {
     console.error("Abandoned checkout webhook error:", error);

@@ -26,6 +26,7 @@ export default function App() {
           <s-link href="/app/services">Services</s-link>
           <s-link href="/app/templates">Templates</s-link>
           <s-link href="/app/message-logs">Message Logs</s-link>
+          <s-link href="/app/abandoned">Abandoned Dashboard</s-link>
           <s-link href="/app/campaigns">Campaign Tracking</s-link>
           <s-link href="/app/chat-button">Chat Button</s-link>
           <s-link href="/app/settings">Settings</s-link>

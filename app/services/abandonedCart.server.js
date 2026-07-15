@@ -19,9 +19,7 @@ async function hasPlacedOrder(store, checkoutToken) {
     );
 
     if (!response.ok) return false;
-
     const data = await response.json();
-
     return !!(data?.checkout?.completed_at || data?.checkout?.order_id);
   } catch (e) {
     console.warn("Order check failed:", e.message);
@@ -29,7 +27,53 @@ async function hasPlacedOrder(store, checkoutToken) {
   }
 }
 
-// ==================== BUILD A CHECKOUT-SHAPED ORDER OBJECT ====================
+// ==================== HELPERS: keep AbandonedReminder + checkout in sync ====================
+
+function reminderNumberFromKey(reminderKey) {
+  const n = Number(String(reminderKey || "").replace(/\D/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+async function updateReminderRow(abandonedCheckoutId, reminderNumber, data) {
+  if (!abandonedCheckoutId || !reminderNumber) return;
+  try {
+    await prisma.abandonedReminder.updateMany({
+      where: { abandonedCheckoutId: BigInt(abandonedCheckoutId), reminderNumber },
+      data,
+    });
+  } catch (e) {
+    console.warn(`⚠️ Could not update reminder row: ${e.message}`);
+  }
+}
+
+async function markCheckoutReminded(abandonedCheckoutId, when) {
+  if (!abandonedCheckoutId) return;
+  try {
+    await prisma.abandonedCheckout.update({
+      where: { id: BigInt(abandonedCheckoutId) },
+      data: {
+        status: "reminded",
+        remindersSent: { increment: 1 },
+        lastReminderAt: when,
+      },
+    });
+  } catch (e) {
+    console.warn(`⚠️ Could not update checkout: ${e.message}`);
+  }
+}
+
+async function markCheckoutRecovered(abandonedCheckoutId) {
+  if (!abandonedCheckoutId) return;
+  try {
+    await prisma.abandonedCheckout.update({
+      where: { id: BigInt(abandonedCheckoutId) },
+      data: { status: "recovered", recoveredAt: new Date() },
+    });
+  } catch (e) {
+    console.warn(`⚠️ Could not mark checkout recovered: ${e.message}`);
+  }
+}
+
 function buildCheckoutOrder(job) {
   const { customerName, customerPhone, checkoutUrl, totalPrice, currency, lineItems, createdAt } = job;
   const [firstName, ...rest] = (customerName || "").split(" ");
@@ -61,19 +105,20 @@ function buildCheckoutOrder(job) {
   };
 }
 
-// ==================== PROCESS ONE REMINDER JOB ====================
 export async function processAbandonedCartJob(job) {
   const {
     storeId, serviceId, customerPhone, customerName, checkoutToken,
     checkoutId, createdAt, expiryDays, reminderKey, templateId,
-    discountCode, includeImage, lineItems,
+    discountCode, includeImage, lineItems, abandonedCheckoutId,
   } = job;
+
+  const reminderNumber = reminderNumberFromKey(reminderKey);
 
   console.log(`🛒 Abandoned cart ${reminderKey} | ${customerPhone} | ${checkoutToken}`);
 
   const daysSince = (Date.now() - new Date(createdAt)) / (1000 * 60 * 60 * 24);
   if (daysSince > expiryDays) {
-    console.log(`⏰ Checkout expired (${Math.round(daysSince)}d > ${expiryDays}d) — skipping`);
+    await updateReminderRow(abandonedCheckoutId, reminderNumber, { status: "cancelled", errorMessage: "Checkout expired" });
     return { skipped: true, reason: "expired" };
   }
 
@@ -85,7 +130,8 @@ export async function processAbandonedCartJob(job) {
   if (!allowed) return { skipped: true, reason: "billing_frozen" };
 
   if (await hasPlacedOrder(store, checkoutToken)) {
-    console.log(`✅ Checkout already completed — skipping reminder`);
+    await updateReminderRow(abandonedCheckoutId, reminderNumber, { status: "cancelled", errorMessage: "Order already placed" });
+    await markCheckoutRecovered(abandonedCheckoutId);
     return { skipped: true, reason: "order_placed" };
   }
 
@@ -98,18 +144,20 @@ export async function processAbandonedCartJob(job) {
       metadata: { path: ["reminderKey"], equals: reminderKey },
     },
   });
-  if (alreadySent) {
-    console.log(`⚠️ ${reminderKey} already sent for ${checkoutToken} — skipping`);
-    return { skipped: true, reason: "duplicate" };
-  }
+  if (alreadySent) return { skipped: true, reason: "duplicate" };
 
-  if (!templateId) return { skipped: true, reason: "no_template" };
+  if (!templateId) {
+    await updateReminderRow(abandonedCheckoutId, reminderNumber, { status: "failed", errorMessage: "No template" });
+    return { skipped: true, reason: "no_template" };
+  }
 
   const template = await prisma.template.findUnique({ where: { id: BigInt(templateId) } });
   if (!template || template.status !== "approved") {
-    console.log(`⚠️ Template not approved — skipping`);
+    await updateReminderRow(abandonedCheckoutId, reminderNumber, { status: "failed", errorMessage: "Template not approved" });
     return { skipped: true, reason: "template_not_ready" };
   }
+
+  await updateReminderRow(abandonedCheckoutId, reminderNumber, { status: "processing" });
 
   const checkoutOrder = buildCheckoutOrder(job);
   const variables = resolveTemplateVariables(template, checkoutOrder, store);
@@ -130,6 +178,7 @@ export async function processAbandonedCartJob(job) {
 
   try {
     const result = await sendTemplateMessage(store, template, customerPhone, varArray, [], productImageUrl);
+    const now = new Date();
 
     await prisma.messageLog.create({
       data: {
@@ -151,9 +200,18 @@ export async function processAbandonedCartJob(job) {
           discountCode,
           abandonedCart: true,
         },
-        sentAt: new Date(),
+        sentAt: now,
       },
     });
+
+    await updateReminderRow(abandonedCheckoutId, reminderNumber, {
+      status: "sent",
+      sentAt: now,
+      whatsappMessageId: result.messageId || null,
+      templateName: template.name,
+      errorMessage: null,
+    });
+    await markCheckoutReminded(abandonedCheckoutId, now);
 
     console.log(`✅ Abandoned cart ${reminderKey} sent to ${customerPhone}`);
     return { success: true, messageId: result.messageId, reminderKey };
@@ -176,6 +234,12 @@ export async function processAbandonedCartJob(job) {
         metadata: { variables: varArray, reminderKey, abandonedCart: true },
         sentAt: new Date(),
       },
+    });
+
+    await updateReminderRow(abandonedCheckoutId, reminderNumber, {
+      status: "failed",
+      errorMessage: error.message,
+      templateName: template.name,
     });
 
     await prisma.retryQueue.create({

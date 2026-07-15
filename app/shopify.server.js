@@ -7,6 +7,7 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 import "./workers/abandonedCart.server.js";
+import "./workers/abandonedSync.server.js";
 import "./workers/orderMessage.server.js";
 
 const shopify = shopifyApp({
