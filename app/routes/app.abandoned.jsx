@@ -206,7 +206,11 @@ export default function Abandoned() {
                       <Text as="span" variant="bodySm" tone="subdued">{r.customerPhone}</Text>
                     </BlockStack>
                   </IndexTable.Cell>
-                  <IndexTable.Cell><Text as="span" variant="bodyMd">#{r.reminderNumber}</Text></IndexTable.Cell>
+                  <IndexTable.Cell>
+                    {r.reminderNumber >= 90
+                      ? <Badge tone="info">Manual</Badge>
+                      : <Text as="span" variant="bodyMd">#{r.reminderNumber}</Text>}
+                  </IndexTable.Cell>
                   <IndexTable.Cell><Text as="span" variant="bodyMd">{r.templateName || "—"}</Text></IndexTable.Cell>
                   <IndexTable.Cell><Badge tone={STATUS_TONE[r.status] || "attention"}>{r.status}</Badge></IndexTable.Cell>
                   <IndexTable.Cell><Text as="span" variant="bodySm" tone="subdued">{fmtScheduled(r.scheduledAt)}</Text></IndexTable.Cell>

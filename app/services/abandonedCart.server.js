@@ -202,7 +202,7 @@ export async function processAbandonedCartJob(job) {
         customerPhone,
         customerName: customerName || "",
         messageType: "abandoned_checkout",
-        templateName: template.name,
+        templateName: template.displayName || template.name,
         status: "sent",
         direction: "outbound",
         metadata: {
@@ -222,7 +222,7 @@ export async function processAbandonedCartJob(job) {
       sentAt: now,
       whatsappMessageId: result.messageId || null,
       messageBody: resolveMessageBody(template, varArray),
-      templateName: template.name,
+      templateName: template.displayName || template.name,
       errorMessage: null,
     });
     await markCheckoutReminded(abandonedCheckoutId, now);
@@ -241,7 +241,7 @@ export async function processAbandonedCartJob(job) {
         customerPhone,
         customerName: customerName || "",
         messageType: "abandoned_checkout",
-        templateName: template.name,
+        templateName: template.displayName || template.name,
         status: "failed",
         direction: "outbound",
         errorMessage: error.message,
@@ -253,7 +253,7 @@ export async function processAbandonedCartJob(job) {
     await updateReminderRow(abandonedCheckoutId, reminderNumber, {
       status: "failed",
       errorMessage: error.message,
-      templateName: template.name,
+      templateName: template.displayName || template.name,
     });
 
     await prisma.retryQueue.create({
@@ -263,7 +263,7 @@ export async function processAbandonedCartJob(job) {
         orderId: checkoutToken,
         orderName,
         customerPhone,
-        templateName: template.name,
+        templateName: template.displayName || template.name,
         serviceKey: "abandoned_checkout",
         status: "failed",
         errorMessage: error.message,

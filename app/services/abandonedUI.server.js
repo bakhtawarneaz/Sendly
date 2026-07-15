@@ -256,7 +256,7 @@ export async function sendManualReminder(session, { checkoutId, templateId }) {
     { attempts: 2, backoff: { type: "exponential", delay: 30000 }, jobId: `${checkout.checkoutToken}-${manualKey}` }
   );
 
-  return { success: true, message: "Manual reminder queued" };
+  return { success: true, message: "Manual reminder sent" };
 }
 
 // ==================== RETRY FAILED REMINDER ====================
