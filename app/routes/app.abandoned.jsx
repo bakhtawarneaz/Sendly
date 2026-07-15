@@ -96,9 +96,9 @@ export default function Abandoned() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
 
-  const [sendModal, setSendModal] = useState(null); 
+  const [sendModal, setSendModal] = useState(null); // checkout row
   const [templateId, setTemplateId] = useState("");
-  const [viewLog, setViewLog] = useState(null); 
+  const [viewLog, setViewLog] = useState(null); // reminder log row
 
   const [toast, setToast] = useState("");
 
@@ -153,7 +153,7 @@ export default function Abandoned() {
   const logTotalPages = overview.pagination?.totalPages || 1;
 
   const fmtScheduled = (d) =>
-    d ? new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+    d ? new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) : "—";
 
   const overviewTab = (
     <BlockStack gap="400">
@@ -397,7 +397,7 @@ export default function Abandoned() {
                 <BlockStack gap="100">
                   <Text as="span" variant="headingSm">WhatsApp message ID</Text>
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                    <Text as="p" variant="bodyMd" tone="subdued">{viewLog.whatsappMessageId || "Not available"}</Text>
+                    <Text as="p" variant="bodyMd" tone="subdued" breakWord>{viewLog.whatsappMessageId || "Not available"}</Text>
                   </Box>
                 </BlockStack>
                 {viewLog.errorMessage && (
