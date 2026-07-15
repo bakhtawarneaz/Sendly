@@ -275,7 +275,7 @@ export default function Abandoned() {
 
   return (
     <Frame>
-      <Page title="Abandoned checkouts" subtitle="Track and recover abandoned carts.">
+      <Page title="Abandoned Dashboard" subtitle="Track and recover abandoned carts.">
         <Layout>
           <Layout.Section>
             <Card padding="0">

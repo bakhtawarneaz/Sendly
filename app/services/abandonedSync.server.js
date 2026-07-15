@@ -4,7 +4,11 @@ import { parseDelayToMs } from "../utils/delay.js";
 import { canSendMessage } from "../utils/billing.server.js";
 
 // ============================================================
-// (GraphQL)
+// PHASE 2 — SYNC FALLBACK (GraphQL)
+// Polls Shopify for abandoned checkouts the webhook may have missed,
+// upserts them into AbandonedCheckout, and schedules reminders.
+// REST checkouts.json is legacy/blocked for new public apps, so this
+// uses the GraphQL Admin API `abandonedCheckouts` query.
 // ============================================================
 
 const CHECKOUTS_QUERY = `#graphql
@@ -38,6 +42,8 @@ const CHECKOUTS_QUERY = `#graphql
   }
 `;
 
+// Shopify checkout GID -> plain token-ish id we store.
+// GID looks like gid://shopify/AbandonedCheckout/123456789
 function gidToId(gid) {
   if (!gid) return "";
   const parts = String(gid).split("/");
@@ -66,6 +72,7 @@ function buildCartItems(node) {
 
 // ==================== SYNC ONE STORE ====================
 async function syncStore(store, admin) {
+  // find the abandoned_checkout service + its config for this store
   const storeService = await prisma.storeService.findFirst({
     where: {
       storeId: store.id,
@@ -84,6 +91,7 @@ async function syncStore(store, admin) {
   const hasEnabledReminder = Object.values(reminders).some((r) => r.enabled);
   if (!hasEnabledReminder) return { skipped: true, reason: "no_reminders", synced: 0 };
 
+  // only checkouts from the last 24h — older ones are past reminder window anyway
   const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const searchQuery = `created_at:>='${sinceIso}'`;
 
@@ -104,6 +112,7 @@ async function syncStore(store, admin) {
 
     for (const { node } of connection.edges) {
       try {
+        // already converted? skip
         if (node.completedAt) {
           skipped++;
           continue;
@@ -127,6 +136,7 @@ async function syncStore(store, admin) {
           continue;
         }
 
+        // dedupe: if we already have this checkout and it's terminal, skip
         const existing = await prisma.abandonedCheckout.findUnique({
           where: { storeId_checkoutToken: { storeId: store.id, checkoutToken } },
         });
@@ -143,6 +153,7 @@ async function syncStore(store, admin) {
         const currency = node.totalPriceSet?.presentmentMoney?.currencyCode || store.currency || "USD";
 
         if (existing) {
+          // refresh snapshot on still-open checkouts, don't reschedule
           if (existing.status === "pending" || existing.status === "reminded") {
             await prisma.abandonedCheckout.update({
               where: { id: existing.id },
@@ -153,6 +164,7 @@ async function syncStore(store, admin) {
           continue;
         }
 
+        // new checkout the webhook missed — upsert + schedule via shared helper
         await upsertCheckoutAndSchedule({
           store,
           storeService,
@@ -187,10 +199,14 @@ async function syncStore(store, admin) {
 }
 
 // ==================== SHARED: UPSERT CHECKOUT + SCHEDULE REMINDERS ====================
+// The single source of truth for turning a checkout (from webhook OR sync)
+// into an AbandonedCheckout row + AbandonedReminder rows + queued jobs.
+// Idempotent: safe to call twice for the same checkoutToken.
 export async function upsertCheckoutAndSchedule({ store, storeService, reminders, expiryDays, checkout, source }) {
   const createdAtMs = new Date(checkout.createdAt || Date.now()).getTime();
   const expiresAt = new Date((isNaN(createdAtMs) ? Date.now() : createdAtMs) + expiryDays * 24 * 60 * 60 * 1000);
 
+  // upsert the checkout row (dedupe on storeId + checkoutToken)
   const record = await prisma.abandonedCheckout.upsert({
     where: { storeId_checkoutToken: { storeId: store.id, checkoutToken: checkout.checkoutToken } },
     update: {
@@ -218,6 +234,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
     },
   });
 
+  // if already terminal, don't schedule anything
   if (record.status === "recovered" || record.status === "expired") {
     return { checkout: record, scheduled: 0 };
   }
@@ -247,6 +264,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
     const reminderNumber = Number(String(key).replace(/\D/g, "")) || 1;
     const delayMs = parseDelayToMs(reminder.delay || "30_min");
 
+    // don't double-create a reminder row for this checkout+number
     const exists = await prisma.abandonedReminder.findUnique({
       where: { abandonedCheckoutId_reminderNumber: { abandonedCheckoutId: record.id, reminderNumber } },
     });
@@ -257,6 +275,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
       {
         ...checkoutData,
         reminderKey: key,
+        reminderNumber,
         templateId: reminder.templateId || "",
         discountCode: reminder.discountCode || "",
         includeImage: reminder.productImage || false,
@@ -302,6 +321,8 @@ export async function expireOldCheckouts() {
 }
 
 // ==================== MAIN SYNC ENTRY ====================
+// Called by the sync worker. Needs an admin GraphQL client per store.
+// We build one from the offline session's access token.
 export async function runAbandonedSync() {
   await expireOldCheckouts();
 
@@ -337,6 +358,7 @@ export async function runAbandonedSync() {
 }
 
 // ==================== ADMIN CLIENT FROM OFFLINE SESSION ====================
+// A minimal GraphQL client that mirrors admin.graphql(query, { variables }).
 async function getAdminClient(store) {
   const session = await prisma.session.findFirst({
     where: { shop: store.shopDomain, isOnline: false },

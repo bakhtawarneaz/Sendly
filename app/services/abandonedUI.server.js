@@ -205,13 +205,37 @@ export async function sendManualReminder(session, { checkoutId, templateId }) {
   });
   if (!storeService) return { success: false, error: "Abandoned service not enabled" };
 
+  // manual reminders get a high number (90+) so they don't collide with 1/2/3
+  const lastManual = await prisma.abandonedReminder.findFirst({
+    where: { abandonedCheckoutId: checkout.id, reminderNumber: { gte: 90 } },
+    orderBy: { reminderNumber: "desc" },
+  });
+  const manualNumber = lastManual ? lastManual.reminderNumber + 1 : 90;
+
+  const template = await prisma.template.findUnique({ where: { id: BigInt(templateId) } });
+
   const manualKey = `manual-${Date.now()}`;
+
+  // create the reminder row up front so the worker can update it to sent/failed
+  await prisma.abandonedReminder.create({
+    data: {
+      storeId: store.id,
+      abandonedCheckoutId: checkout.id,
+      reminderNumber: manualNumber,
+      templateId: BigInt(templateId),
+      templateName: template?.name || null,
+      status: "scheduled",
+      scheduledAt: new Date(),
+    },
+  });
+
   await abandonedCartQueue.add(
     `reminder-${manualKey}`,
     {
       storeId: String(store.id),
       serviceId: String(storeService.service.id),
       abandonedCheckoutId: String(checkout.id),
+      reminderNumber: manualNumber,
       customerPhone: checkout.customerPhone,
       customerName: checkout.customerName,
       checkoutToken: checkout.checkoutToken,
@@ -273,6 +297,7 @@ export async function retryReminder(session, { reminderId }) {
       storeId: String(store.id),
       serviceId: String(storeService.service.id),
       abandonedCheckoutId: String(checkout.id),
+      reminderNumber: reminder.reminderNumber,
       customerPhone: checkout.customerPhone,
       customerName: checkout.customerName,
       checkoutToken: checkout.checkoutToken,
