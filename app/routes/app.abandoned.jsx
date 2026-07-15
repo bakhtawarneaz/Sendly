@@ -12,7 +12,7 @@ import {
 import {
   Page, Frame, Layout, Card, Box, Tabs, Button, Badge, Icon, Text,
   InlineStack, BlockStack, InlineGrid, TextField, Select, IndexTable,
-  Modal, Banner, EmptyState, Toast, Divider,
+  Modal, Banner, EmptyState, Toast, Divider, Pagination,
 } from "@shopify/polaris";
 import {
   SendIcon, CheckCircleIcon, AlertCircleIcon, CashDollarIcon,
@@ -27,9 +27,11 @@ export const loader = async ({ request }) => {
   const status = url.searchParams.get("status") || "";
   const search = url.searchParams.get("q") || "";
   const page = url.searchParams.get("page") || "1";
+  const logStatus = url.searchParams.get("logStatus") || "";
+  const logPage = url.searchParams.get("logPage") || "1";
 
   const [overview, checkouts, templates] = await Promise.all([
-    loadAbandonedOverview(session, { from, to, status }),
+    loadAbandonedOverview(session, { from, to, status: logStatus, page: logPage }),
     loadAbandonedCheckouts(session, { status, search, page }),
     loadAbandonedTemplates(session),
   ]);
@@ -94,9 +96,9 @@ export default function Abandoned() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
 
-  const [sendModal, setSendModal] = useState(null); // checkout row
+  const [sendModal, setSendModal] = useState(null); 
   const [templateId, setTemplateId] = useState("");
-  const [viewLog, setViewLog] = useState(null); // reminder log row
+  const [viewLog, setViewLog] = useState(null); 
 
   const [toast, setToast] = useState("");
 
@@ -140,6 +142,19 @@ export default function Abandoned() {
   const cs = checkouts.stats || {};
 
   // ---------- OVERVIEW TAB ----------
+  const logStatusOptions = [
+    { label: "All statuses", value: "" },
+    { label: "Scheduled", value: "scheduled" },
+    { label: "Sent", value: "sent" },
+    { label: "Failed", value: "failed" },
+    { label: "Cancelled", value: "cancelled" },
+  ];
+  const logPage = overview.pagination?.page || 1;
+  const logTotalPages = overview.pagination?.totalPages || 1;
+
+  const fmtScheduled = (d) =>
+    d ? new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+
   const overviewTab = (
     <BlockStack gap="400">
       <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
@@ -149,11 +164,23 @@ export default function Abandoned() {
         <StatCard icon={CheckCircleIcon} tone="base" label="Self recovered" value={money(s.selfRecoveredAmount, overview.currency)} />
       </InlineGrid>
 
+      <Card>
+        <Box maxWidth="240px">
+          <Select
+            label="Status"
+            labelHidden
+            options={logStatusOptions}
+            value={searchParams.get("logStatus") || ""}
+            onChange={(v) => applyFilters({ logStatus: v, logPage: "" })}
+          />
+        </Box>
+      </Card>
+
       <Card padding="0">
         <Box padding="400" borderBlockEndWidth="025" borderColor="border">
           <InlineStack align="space-between" blockAlign="center">
             <Text as="h3" variant="headingMd">Reminder log</Text>
-            <Text as="span" variant="bodySm" tone="subdued">{overview.log?.length || 0} shown</Text>
+            <Text as="span" variant="bodySm" tone="subdued">{overview.pagination?.total || 0} total</Text>
           </InlineStack>
         </Box>
         {(!overview.log || overview.log.length === 0) ? (
@@ -161,39 +188,55 @@ export default function Abandoned() {
             <Text as="p" variant="bodyMd" tone="subdued" alignment="center">No reminders yet.</Text>
           </Box>
         ) : (
-          <IndexTable
-            resourceName={{ singular: "reminder", plural: "reminders" }}
-            itemCount={overview.log.length}
-            selectable={false}
-            headings={[
-              { title: "Customer" }, { title: "Reminder" }, { title: "Template" },
-              { title: "Status" }, { title: "Cart total" }, { title: "Checkout" }, { title: "" },
-            ]}
-          >
-            {overview.log.map((r, i) => (
-              <IndexTable.Row id={r.id} key={r.id} position={i}>
-                <IndexTable.Cell>
-                  <BlockStack gap="0">
-                    <Text as="span" variant="bodyMd" fontWeight="medium">{r.customerName || "Guest"}</Text>
-                    <Text as="span" variant="bodySm" tone="subdued">{r.customerPhone}</Text>
-                  </BlockStack>
-                </IndexTable.Cell>
-                <IndexTable.Cell><Text as="span" variant="bodyMd">#{r.reminderNumber}</Text></IndexTable.Cell>
-                <IndexTable.Cell><Text as="span" variant="bodyMd">{r.templateName || "—"}</Text></IndexTable.Cell>
-                <IndexTable.Cell><Badge tone={STATUS_TONE[r.status] || "attention"}>{r.status}</Badge></IndexTable.Cell>
-                <IndexTable.Cell><Text as="span" variant="bodyMd">{money(r.cartTotal, r.currency)}</Text></IndexTable.Cell>
-                <IndexTable.Cell>{r.checkoutStatus ? <Badge tone={STATUS_TONE[r.checkoutStatus] || "attention"}>{r.checkoutStatus}</Badge> : "—"}</IndexTable.Cell>
-                <IndexTable.Cell>
-                  <InlineStack gap="200">
-                    <Button size="slim" icon={ViewIcon} onClick={() => setViewLog(r)} accessibilityLabel="View" />
-                    {r.status === "failed" && (
-                      <Button size="slim" onClick={() => handleRetry(r.id)} loading={fetcher.state !== "idle"}>Retry</Button>
-                    )}
-                  </InlineStack>
-                </IndexTable.Cell>
-              </IndexTable.Row>
-            ))}
-          </IndexTable>
+          <>
+            <IndexTable
+              resourceName={{ singular: "reminder", plural: "reminders" }}
+              itemCount={overview.log.length}
+              selectable={false}
+              headings={[
+                { title: "Customer" }, { title: "Reminder" }, { title: "Template" },
+                { title: "Status" }, { title: "Scheduled" }, { title: "Cart total" }, { title: "Checkout" }, { title: "" },
+              ]}
+            >
+              {overview.log.map((r, i) => (
+                <IndexTable.Row id={r.id} key={r.id} position={i}>
+                  <IndexTable.Cell>
+                    <BlockStack gap="0">
+                      <Text as="span" variant="bodyMd" fontWeight="medium">{r.customerName || "Guest"}</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">{r.customerPhone}</Text>
+                    </BlockStack>
+                  </IndexTable.Cell>
+                  <IndexTable.Cell><Text as="span" variant="bodyMd">#{r.reminderNumber}</Text></IndexTable.Cell>
+                  <IndexTable.Cell><Text as="span" variant="bodyMd">{r.templateName || "—"}</Text></IndexTable.Cell>
+                  <IndexTable.Cell><Badge tone={STATUS_TONE[r.status] || "attention"}>{r.status}</Badge></IndexTable.Cell>
+                  <IndexTable.Cell><Text as="span" variant="bodySm" tone="subdued">{fmtScheduled(r.scheduledAt)}</Text></IndexTable.Cell>
+                  <IndexTable.Cell><Text as="span" variant="bodyMd">{money(r.cartTotal, r.currency)}</Text></IndexTable.Cell>
+                  <IndexTable.Cell>{r.checkoutStatus ? <Badge tone={STATUS_TONE[r.checkoutStatus] || "attention"}>{r.checkoutStatus}</Badge> : "—"}</IndexTable.Cell>
+                  <IndexTable.Cell>
+                    <InlineStack gap="200">
+                      <Button size="slim" icon={ViewIcon} onClick={() => setViewLog(r)} accessibilityLabel="View" />
+                      {r.status === "failed" && (
+                        <Button size="slim" onClick={() => handleRetry(r.id)} loading={fetcher.state !== "idle"}>Retry</Button>
+                      )}
+                    </InlineStack>
+                  </IndexTable.Cell>
+                </IndexTable.Row>
+              ))}
+            </IndexTable>
+            {logTotalPages > 1 && (
+              <Box padding="400" borderBlockStartWidth="025" borderColor="border">
+                <InlineStack align="center">
+                  <Pagination
+                    hasPrevious={logPage > 1}
+                    onPrevious={() => applyFilters({ logPage: String(logPage - 1) })}
+                    hasNext={logPage < logTotalPages}
+                    onNext={() => applyFilters({ logPage: String(logPage + 1) })}
+                    label={`Page ${logPage} of ${logTotalPages}`}
+                  />
+                </InlineStack>
+              </Box>
+            )}
+          </>
         )}
       </Card>
     </BlockStack>
@@ -269,13 +312,26 @@ export default function Abandoned() {
             ))}
           </IndexTable>
         )}
+        {(checkouts.pagination?.totalPages || 1) > 1 && (
+          <Box padding="400" borderBlockStartWidth="025" borderColor="border">
+            <InlineStack align="center">
+              <Pagination
+                hasPrevious={(checkouts.pagination?.page || 1) > 1}
+                onPrevious={() => applyFilters({ page: String((checkouts.pagination?.page || 1) - 1) })}
+                hasNext={(checkouts.pagination?.page || 1) < (checkouts.pagination?.totalPages || 1)}
+                onNext={() => applyFilters({ page: String((checkouts.pagination?.page || 1) + 1) })}
+                label={`Page ${checkouts.pagination?.page || 1} of ${checkouts.pagination?.totalPages || 1}`}
+              />
+            </InlineStack>
+          </Box>
+        )}
       </Card>
     </BlockStack>
   );
 
   return (
     <Frame>
-      <Page title="Abandoned Dashboard" subtitle="Track and recover abandoned carts.">
+      <Page title="Abandoned checkouts" subtitle="Track and recover abandoned carts.">
         <Layout>
           <Layout.Section>
             <Card padding="0">

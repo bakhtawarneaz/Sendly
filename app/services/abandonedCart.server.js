@@ -28,10 +28,18 @@ async function hasPlacedOrder(store, checkoutToken) {
 }
 
 // ==================== HELPERS: keep AbandonedReminder + checkout in sync ====================
-// reminderNumber is derived from the reminderKey ("reminder-1" -> 1, manual/retry -> null)
+
 function reminderNumberFromKey(reminderKey) {
   const n = Number(String(reminderKey || "").replace(/\D/g, ""));
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function resolveMessageBody(template, varArray) {
+  let body = template.body || "";
+  (varArray || []).forEach((val, i) => {
+    body = body.replaceAll(`{{${i + 1}}}`, String(val ?? ""));
+  });
+  return body;
 }
 
 async function updateReminderRow(abandonedCheckoutId, reminderNumber, data) {
@@ -113,7 +121,6 @@ export async function processAbandonedCartJob(job) {
     reminderNumber: reminderNumberFromJob,
   } = job;
 
-  // prefer the number passed in the payload; fall back to digits in the key
   const reminderNumber = reminderNumberFromJob ?? reminderNumberFromKey(reminderKey);
 
   console.log(`🛒 Abandoned cart ${reminderKey} | ${customerPhone} | ${checkoutToken}`);
@@ -207,11 +214,11 @@ export async function processAbandonedCartJob(job) {
       },
     });
 
-    // update reminder row + checkout
     await updateReminderRow(abandonedCheckoutId, reminderNumber, {
       status: "sent",
       sentAt: now,
       whatsappMessageId: result.messageId || null,
+      messageBody: resolveMessageBody(template, varArray),
       templateName: template.name,
       errorMessage: null,
     });

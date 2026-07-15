@@ -1,11 +1,6 @@
 import prisma from "../db.server";
 import { getStore } from "../utils/helpers.server.js";
 
-// ============================================================
-// PHASE 5 — ABANDONED UI BACKEND
-// Functions that power the Overview + Checkouts tabs, plus manual
-// send and retry actions.
-// ============================================================
 
 function dateRangeWhere(from, to, field = "createdAt") {
   if (!from && !to) return {};
@@ -19,12 +14,14 @@ function dateRangeWhere(from, to, field = "createdAt") {
   return { [field]: range };
 }
 
-// ==================== OVERVIEW (stats + reminder log) ====================
-export async function loadAbandonedOverview(session, { from = "", to = "", status = "" } = {}) {
+
+export async function loadAbandonedOverview(session, { from = "", to = "", status = "", page = 1 } = {}) {
   const store = await getStore(session);
   if (!store) return { error: "Store not found" };
 
   const storeId = store.id;
+  const pageSize = 20;
+  const skip = (Math.max(1, Number(page)) - 1) * pageSize;
   const reminderDate = dateRangeWhere(from, to, "createdAt");
   const recoveredDate = dateRangeWhere(from, to, "recoveredAt");
 
@@ -33,7 +30,6 @@ export async function loadAbandonedOverview(session, { from = "", to = "", statu
     prisma.abandonedReminder.count({ where: { storeId, status: "failed", ...reminderDate } }),
   ]);
 
-  // recovered via reminder vs self-recovered
   const [viaReminder, selfRecovered] = await Promise.all([
     prisma.abandonedCheckout.aggregate({
       _sum: { recoveredOrderTotal: true },
@@ -47,27 +43,30 @@ export async function loadAbandonedOverview(session, { from = "", to = "", statu
     }),
   ]);
 
-  // reminder log (paginated-ish — latest 100)
   const logWhere = { storeId, ...reminderDate };
   if (status) logWhere.status = status;
 
-  const reminders = await prisma.abandonedReminder.findMany({
-    where: logWhere,
-    include: {
-      checkout: {
-        select: {
-          customerName: true,
-          customerPhone: true,
-          cartTotal: true,
-          currency: true,
-          status: true,
-          recoveryUrl: true,
+  const [logCount, reminders] = await Promise.all([
+    prisma.abandonedReminder.count({ where: logWhere }),
+    prisma.abandonedReminder.findMany({
+      where: logWhere,
+      include: {
+        checkout: {
+          select: {
+            customerName: true,
+            customerPhone: true,
+            cartTotal: true,
+            currency: true,
+            status: true,
+            recoveryUrl: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+  ]);
 
   const log = reminders.map((r) => ({
     id: String(r.id),
@@ -98,6 +97,12 @@ export async function loadAbandonedOverview(session, { from = "", to = "", statu
       selfRecoveredCount: selfRecovered._count || 0,
     },
     log,
+    pagination: {
+      page: Number(page),
+      pageSize,
+      total: logCount,
+      totalPages: Math.ceil(logCount / pageSize),
+    },
   };
 }
 
@@ -110,7 +115,6 @@ export async function loadAbandonedCheckouts(session, { status = "", search = ""
   const pageSize = 20;
   const skip = (Math.max(1, Number(page)) - 1) * pageSize;
 
-  // top-line stats (all-time for this store)
   const [total, pending, recovered] = await Promise.all([
     prisma.abandonedCheckout.count({ where: { storeId } }),
     prisma.abandonedCheckout.count({ where: { storeId, status: "pending" } }),
@@ -143,7 +147,7 @@ export async function loadAbandonedCheckouts(session, { status = "", search = ""
     customerName: c.customerName,
     customerPhone: c.customerPhone,
     cartTotal: c.cartTotal ? Number(c.cartTotal) : 0,
-    currency: c.currency || store.currency || "USD",
+    currency: c.currency || store.currency || "PKR",
     status: c.status,
     remindersSent: c.remindersSent,
     lastReminderAt: c.lastReminderAt,
@@ -154,7 +158,7 @@ export async function loadAbandonedCheckouts(session, { status = "", search = ""
 
   return {
     error: null,
-    currency: store.currency || "USD",
+    currency: store.currency || "PKR",
     stats: { total, pending, recovered, recoveryRate },
     data,
     pagination: {
@@ -196,7 +200,6 @@ export async function sendManualReminder(session, { checkoutId, templateId }) {
   if (checkout.status === "recovered") return { success: false, error: "Checkout already recovered" };
   if (checkout.status === "expired") return { success: false, error: "Checkout has expired" };
 
-  // enqueue a manual reminder job — reuse the abandoned-cart worker
   const { abandonedCartQueue } = await import("../queues/queues.server.js");
 
   const storeService = await prisma.storeService.findFirst({
@@ -205,7 +208,6 @@ export async function sendManualReminder(session, { checkoutId, templateId }) {
   });
   if (!storeService) return { success: false, error: "Abandoned service not enabled" };
 
-  // manual reminders get a high number (90+) so they don't collide with 1/2/3
   const lastManual = await prisma.abandonedReminder.findFirst({
     where: { abandonedCheckoutId: checkout.id, reminderNumber: { gte: 90 } },
     orderBy: { reminderNumber: "desc" },
@@ -216,7 +218,6 @@ export async function sendManualReminder(session, { checkoutId, templateId }) {
 
   const manualKey = `manual-${Date.now()}`;
 
-  // create the reminder row up front so the worker can update it to sent/failed
   await prisma.abandonedReminder.create({
     data: {
       storeId: store.id,
@@ -242,7 +243,7 @@ export async function sendManualReminder(session, { checkoutId, templateId }) {
       checkoutId: checkout.shopifyCheckoutId || "",
       checkoutUrl: checkout.recoveryUrl || "",
       totalPrice: String(checkout.cartTotal ?? "0"),
-      currency: checkout.currency || store.currency || "USD",
+      currency: checkout.currency || store.currency || "PKR",
       lineItems: checkout.cartItems || [],
       createdAt: checkout.createdAt,
       expiryDays: 999, // manual send bypasses expiry
@@ -304,7 +305,7 @@ export async function retryReminder(session, { reminderId }) {
       checkoutId: checkout.shopifyCheckoutId || "",
       checkoutUrl: checkout.recoveryUrl || "",
       totalPrice: String(checkout.cartTotal ?? "0"),
-      currency: checkout.currency || store.currency || "USD",
+      currency: checkout.currency || store.currency || "PKR",
       lineItems: checkout.cartItems || [],
       createdAt: checkout.createdAt,
       expiryDays: 999,

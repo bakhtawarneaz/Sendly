@@ -40,7 +40,7 @@ async function startSyncScheduler() {
 
   await abandonedSyncQueue.upsertJobScheduler(
     "abandoned-sync-every-15m",
-    { every: 15 * 60 * 1000 },
+    { every: 60 * 60 * 1000 },
     {
       name: "sync",
       opts: {
