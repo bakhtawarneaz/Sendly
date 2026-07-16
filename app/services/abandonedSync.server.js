@@ -3,6 +3,14 @@ import { parseConfig } from "./order.server.js";
 import { parseDelayToMs } from "../utils/delay.js";
 import { canSendMessage } from "../utils/billing.server.js";
 
+const REMINDER_NUMBER_MAP = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5 };
+function keyToReminderNumber(key) {
+  const k = String(key || "").toLowerCase().trim();
+  if (REMINDER_NUMBER_MAP[k]) return REMINDER_NUMBER_MAP[k];
+  const digits = Number(k.replace(/\D/g, ""));
+  return Number.isFinite(digits) && digits > 0 ? digits : 1;
+}
+
 // ============================================================
 // (GraphQL)
 // ============================================================
@@ -128,6 +136,7 @@ async function syncStore(store, admin) {
           continue;
         }
 
+        // dedupe: if we already have this checkout and it's terminal, skip
         const existing = await prisma.abandonedCheckout.findUnique({
           where: { storeId_checkoutToken: { storeId: store.id, checkoutToken } },
         });
@@ -169,6 +178,7 @@ async function syncStore(store, admin) {
           continue;
         }
 
+        // new checkout the webhook missed — upsert + schedule via shared helper
         await upsertCheckoutAndSchedule({
           store,
           storeService,
@@ -207,6 +217,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
   const createdAtMs = new Date(checkout.createdAt || Date.now()).getTime();
   const expiresAt = new Date((isNaN(createdAtMs) ? Date.now() : createdAtMs) + expiryDays * 24 * 60 * 60 * 1000);
 
+  // upsert the checkout row (dedupe on storeId + checkoutToken)
   const record = await prisma.abandonedCheckout.upsert({
     where: { storeId_checkoutToken: { storeId: store.id, checkoutToken: checkout.checkoutToken } },
     update: {
@@ -234,6 +245,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
     },
   });
 
+  // if already terminal, don't schedule anything
   if (record.status === "recovered" || record.status === "expired") {
     return { checkout: record, scheduled: 0 };
   }
@@ -260,13 +272,24 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
   for (const [key, reminder] of Object.entries(reminders)) {
     if (!reminder.enabled) continue;
 
-    const reminderNumber = Number(String(key).replace(/\D/g, "")) || 1;
+    const reminderNumber = keyToReminderNumber(key);
     const delayMs = parseDelayToMs(reminder.delay || "30_min");
 
+    // don't double-create a reminder row for this checkout+number
     const exists = await prisma.abandonedReminder.findUnique({
       where: { abandonedCheckoutId_reminderNumber: { abandonedCheckoutId: record.id, reminderNumber } },
     });
     if (exists) continue;
+
+    // fetch template name up front so it shows in the log even while scheduled
+    let templateName = null;
+    if (reminder.templateId) {
+      const tpl = await prisma.template.findUnique({
+        where: { id: BigInt(reminder.templateId) },
+        select: { name: true, displayName: true },
+      });
+      templateName = tpl?.displayName || tpl?.name || null;
+    }
 
     const job = await abandonedCartQueue.add(
       `reminder-${key}`,
@@ -292,6 +315,7 @@ export async function upsertCheckoutAndSchedule({ store, storeService, reminders
         abandonedCheckoutId: record.id,
         reminderNumber,
         templateId: reminder.templateId ? BigInt(reminder.templateId) : null,
+        templateName,
         discountCode: reminder.discountCode || null,
         bullmqJobId: job.id ? String(job.id) : null,
         scheduledAt: new Date(Date.now() + delayMs),
