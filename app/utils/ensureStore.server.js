@@ -42,13 +42,14 @@ export async function ensureStore(session, admin) {
   }
 
   store = await prisma.store.upsert({
-    data: {
+    where: { shopDomain },
+    update: {},
+    create: {
       shopDomain,
       ...shopData,
       trialStartDate: new Date(),
       trialEndDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   });
-
   return store;
 }
