@@ -103,3 +103,51 @@ export async function processButtonReply({ contextMessageId, buttonText, phoneNu
     }
   }
 }
+
+// ==================== PROCESS STATUS UPDATE ====================
+export async function processStatusUpdate({ whatsappMessageId, status, errorMessage = null }) {
+  if (!whatsappMessageId || !status) return;
+
+  const log = await prisma.messageLog.findFirst({
+    where: { metadata: { path: ["whatsappMessageId"], equals: whatsappMessageId } },
+    include: { service: true },
+  });
+  if (!log) return;
+
+  const rank = { sent: 1, delivered: 2, read: 3, failed: 3 };
+  const currentRank = rank[log.status?.toLowerCase()] || 0;
+  const newRank = rank[status] || 0;
+  if (status !== "failed" && newRank <= currentRank) return;
+
+  await prisma.messageLog.update({
+    where: { id: log.id },
+    data: {
+      status,
+      errorMessage: status === "failed" ? (errorMessage || "Message delivery failed") : null,
+    },
+  });
+
+  if (status === "failed") {
+    const existingRetry = await prisma.retryQueue.findFirst({
+      where: { messageLogId: log.id },
+    });
+    if (!existingRetry) {
+      await prisma.retryQueue.create({
+        data: {
+          storeId: log.storeId,
+          messageLogId: log.id,
+          orderId: log.orderId || "",
+          orderName: log.orderName || "",
+          customerPhone: log.customerPhone || "",
+          templateName: log.templateName || "",
+          serviceKey: log.service?.serviceKey || "",
+          status: "failed",
+          errorMessage: errorMessage || "Message delivery failed",
+        },
+      });
+      console.log(`🔁 Retry queued for failed message ${whatsappMessageId}`);
+    }
+  }
+
+  console.log(`📊 Status updated: ${status} for ${whatsappMessageId}`);
+}

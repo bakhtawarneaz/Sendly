@@ -1,4 +1,4 @@
-import { processButtonReply } from "../services/whatsappCallback.server.js";
+import { processButtonReply, processStatusUpdate } from "../services/whatsappCallback.server.js";
 
 // GET — Meta webhook verification
 export const loader = async ({ request }) => {
@@ -36,6 +36,14 @@ export const action = async ({ request }) => {
               phoneNumberId,
             });
           }
+        }
+        const statuses = change.value?.statuses || [];
+        for (const st of statuses) {
+          await processStatusUpdate({
+            whatsappMessageId: st.id,
+            status: st.status,
+            errorMessage: st.errors?.[0]?.title || st.errors?.[0]?.error_data?.details || null,
+          });
         }
       }
     }

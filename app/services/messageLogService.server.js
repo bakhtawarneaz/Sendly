@@ -38,14 +38,15 @@ export async function loadMessageLogs(session, { page = 1, perPage = 10, status 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const SENT_STATES = ["sent", "delivered", "read"];
 
   const [totalSent, totalDelivered, totalRead, totalFailed, todaySent, monthSent] = await Promise.all([
-    prisma.messageLog.count({ where: { storeId: store.id, status: "sent" } }),
-    prisma.messageLog.count({ where: { storeId: store.id, status: "delivered" } }),
+    prisma.messageLog.count({ where: { storeId: store.id, status: { in: SENT_STATES } } }),
+    prisma.messageLog.count({ where: { storeId: store.id, status: { in: ["delivered", "read"] } } }),
     prisma.messageLog.count({ where: { storeId: store.id, status: "read" } }),
     prisma.messageLog.count({ where: { storeId: store.id, status: "failed" } }),
-    prisma.messageLog.count({ where: { storeId: store.id, status: "sent", createdAt: { gte: todayStart } } }),
-    prisma.messageLog.count({ where: { storeId: store.id, status: "sent", createdAt: { gte: monthStart } } }),
+    prisma.messageLog.count({ where: { storeId: store.id, status: { in: SENT_STATES }, createdAt: { gte: todayStart } } }),
+    prisma.messageLog.count({ where: { storeId: store.id, status: { in: SENT_STATES }, createdAt: { gte: monthStart } } }),
   ]);
 
   const services = await prisma.service.findMany({ where: { isActive: true }, orderBy: { createdAt: "asc" } });

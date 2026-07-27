@@ -2,7 +2,7 @@ import { useLoaderData, useNavigate } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { loadDashboard } from "../services/dashboardService.server.js";
-import { getStore } from "../utils/helpers.server.js";
+import { ensureStore } from "../utils/ensureStore.server.js";
 import {
   Page,
   Frame,
@@ -28,7 +28,7 @@ import {
 
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
-  const store = await getStore(session);
+  const store = await ensureStore(session, admin);
   return await loadDashboard(admin, store);
 };
 
