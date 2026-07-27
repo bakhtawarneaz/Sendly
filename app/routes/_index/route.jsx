@@ -270,17 +270,31 @@ import styles from "./styles.module.css";
 
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
+  const referer = request.headers.get("referer") || "NONE";
+  const secFetchDest = request.headers.get("sec-fetch-dest") || "NONE";
 
-  // Shopify admin ke andar / embedded context → seedha app par
-  if (
+  // TEMPORARY DEBUG — logs dekhne ke liye
+  console.log("=== INDEX LOADER ===");
+  console.log("URL:", url.href);
+  console.log("search params:", url.search);
+  console.log("referer:", referer);
+  console.log("sec-fetch-dest:", secFetchDest);
+  console.log("====================");
+
+  const hasShopifyParams =
     url.searchParams.get("shop") ||
     url.searchParams.get("host") ||
-    url.searchParams.get("embedded")
-  ) {
+    url.searchParams.get("embedded") ||
+    url.searchParams.get("id_token");
+
+  const fromShopifyAdmin =
+    referer.includes("admin.shopify.com") ||
+    referer.includes(".myshopify.com");
+
+  if (hasShopifyParams || fromShopifyAdmin) {
     throw redirect(`/app${url.search}`);
   }
 
-  // Bahar (public visitor) → landing page
   return { showForm: true };
 };
 
