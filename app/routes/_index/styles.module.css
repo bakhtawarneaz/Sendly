@@ -502,6 +502,11 @@
   color: var(--leaf-deep);
 }
 
+.footer strong {
+  color: var(--leaf-deep);
+  font-weight: 700;
+}
+
 /* ---------- a11y + responsive ---------- */
 .page :focus-visible {
   outline: 2.5px solid var(--leaf);
