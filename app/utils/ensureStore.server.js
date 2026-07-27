@@ -41,7 +41,7 @@ export async function ensureStore(session, admin) {
     console.error("ensureStore: failed to fetch shop details", err);
   }
 
-  store = await prisma.store.create({
+  store = await prisma.store.upsert({
     data: {
       shopDomain,
       ...shopData,
