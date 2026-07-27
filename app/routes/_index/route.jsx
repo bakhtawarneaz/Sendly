@@ -266,6 +266,7 @@
 // }
 
 import { redirect, useLoaderData } from "react-router";
+import { useEffect, useState } from "react";
 import styles from "./styles.module.css";
 
 export const loader = async ({ request }) => {
@@ -387,6 +388,22 @@ function Icon({ d }) {
 
 export default function Index() {
   useLoaderData();
+
+  const [inIframe, setInIframe] = useState(false);
+
+  useEffect(() => {
+    // Client-side: agar page Shopify admin iframe ke andar khula hai
+    if (typeof window !== "undefined" && window.top !== window.self) {
+      setInIframe(true);
+      // Iframe todke top-level par app kholo — current origin ka /app
+      window.top.location.href = window.location.origin + "/app";
+    }
+  }, []);
+
+  // Iframe ke andar → landing page render mat karo (redirect ho raha hai)
+  if (inIframe) {
+    return null;
+  }
 
   return (
     <div className={styles.page}>
