@@ -108,13 +108,13 @@ export default function App() {
   const { showForm } = useLoaderData();
   useEffect(() => {
     if (typeof window !== "undefined" && window.top !== window.self) {
-      window.location.href = "/app" + window.location.search;
+      window.open("/app" + window.location.search, "_top");
     }
   }, []);
   if (typeof window !== "undefined" && window.top !== window.self) {
     return null;
   }
-  
+
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
