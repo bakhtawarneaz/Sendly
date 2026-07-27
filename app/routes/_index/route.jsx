@@ -464,14 +464,14 @@ export default function App() {
           © 2026 DEVMANTIC (PRIVATE) LIMITED — <strong>Sendly</strong>
         </span>
         <nav>
-          
+        <a
             href="https://devmantic.com/sendly-privacy-policy/"
             target="_blank"
             rel="noopener noreferrer"
           >
             Privacy Policy
           </a>
-          
+          <a
             href="https://devmantic.com/sendly-terms/"
             target="_blank"
             rel="noopener noreferrer"
