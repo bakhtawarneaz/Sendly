@@ -24,7 +24,9 @@
 .page *::after {
   box-sizing: border-box;
 }
-
+body{
+  margin: 0;
+}
 /* ---------- nav ---------- */
 .header {
   position: sticky;
@@ -160,7 +162,7 @@
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 1.03;
-  font-size: clamp(38px, 5.2vw, 62px);
+  font-size: clamp(38px, 5.2vw, 55px);
   margin: 0;
 }
 

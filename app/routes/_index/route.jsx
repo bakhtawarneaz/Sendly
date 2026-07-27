@@ -245,6 +245,7 @@
 import { redirect, Form, useLoaderData } from "react-router";
 import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
+import { Link } from "react-router";
 
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
@@ -453,9 +454,9 @@ export default function App() {
             Switch on every service, send real messages, and see the replies come
             in. Add a card only if you keep it.
           </p>
-          <a href="/settings" className={styles.ctaButton}>
+          <Link to="/app/settings" className={styles.ctaButton}>
             Connect your store
-          </a>
+          </Link>
         </div>
       </section>
 
