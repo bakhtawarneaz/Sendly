@@ -111,6 +111,10 @@ export default function App() {
       window.location.href = "/app" + window.location.search;
     }
   }, []);
+  if (typeof window !== "undefined" && window.top !== window.self) {
+    return null;
+  }
+  
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
