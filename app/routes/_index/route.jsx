@@ -1,6 +1,7 @@
 import { redirect, Form, useLoaderData } from "react-router";
 import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
+import { useEffect } from "react";
 import { Link } from "react-router";
 
 export const loader = async ({ request }) => {
@@ -105,7 +106,11 @@ function Icon({ d }) {
 
 export default function App() {
   const { showForm } = useLoaderData();
-
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.top !== window.self) {
+      window.location.href = "/app" + window.location.search;
+    }
+  }, []);
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
