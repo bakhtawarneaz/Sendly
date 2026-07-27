@@ -5,8 +5,11 @@ import { Link } from "react-router";
 
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
-
-  if (url.searchParams.get("shop")) {
+  if (
+    url.searchParams.get("shop") ||
+    url.searchParams.get("host") ||
+    url.searchParams.get("embedded")
+  ) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
