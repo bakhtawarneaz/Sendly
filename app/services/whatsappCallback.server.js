@@ -151,3 +151,63 @@ export async function processStatusUpdate({ whatsappMessageId, status, errorMess
 
   console.log(`📊 Status updated: ${status} for ${whatsappMessageId}`);
 }
+
+
+// ==================== REVIEW REQUEST FLOW ====================
+export async function processReviewReply({ contextMessageId, phone, phoneNumberId, listReplyId, buttonText, textBody }) {
+  const {
+    sendRatingList,
+    handleRatingReply,
+    handleReviewText,
+  } = await import("./reviewResponse.server.js");
+
+  let store = null;
+  if (phoneNumberId) {
+    store = await prisma.store.findFirst({ where: { whatsappPhoneId: phoneNumberId } });
+  }
+
+  const cleanPhone = (phone || "").replace(/[\s\-\+]/g, "");
+
+  if (contextMessageId) {
+    const rr = await prisma.reviewRequest.findFirst({
+      where: {
+        whatsappMessageId: contextMessageId,
+        ...(store ? { storeId: store.id } : {}),
+      },
+      include: { store: true },
+    });
+    if (rr) {
+      if (!store) store = rr.store;
+      if (rr.status === "requested" || rr.status === "rating_sent") {
+        await sendRatingList(store, rr);
+        return true;
+      }
+    }
+  }
+
+  const openReview = await prisma.reviewRequest.findFirst({
+    where: {
+      customerPhone: cleanPhone,
+      status: { in: ["rating_sent", "rated"] },
+      ...(store ? { storeId: store.id } : {}),
+    },
+    orderBy: { id: "desc" },
+    include: { store: true },
+  });
+  if (!openReview) return false;
+  if (!store) store = openReview.store;
+
+
+  if (listReplyId && listReplyId.startsWith("review_rating_") && openReview.status === "rating_sent") {
+    const rating = parseInt(listReplyId.replace("review_rating_", ""), 10) || 5;
+    await handleRatingReply(store, openReview, rating);
+    return true;
+  }
+
+  if (textBody && openReview.status === "rated") {
+    await handleReviewText(store, openReview, textBody.trim());
+    return true;
+  }
+
+  return false;
+}

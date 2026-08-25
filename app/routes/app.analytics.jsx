@@ -44,6 +44,7 @@ const SERVICE_ICONS = {
   order_cancelled: AlertCircleIcon,
   order_delivered: DeliveryIcon,
   abandoned_checkout: CartIcon,
+  review_request_whatsapp: NoteIcon,
 };
 
 const STATUS_TONE = {
@@ -238,6 +239,10 @@ export default function Analytics() {
                     { value: s.confirmed ?? 0, label: "Confirmed" },
                     { value: s.cancelled ?? 0, label: "Cancelled" },
                     { value: s.noResponse ?? 0, label: "No resp." },
+                  ] : []),
+                  ...(s.key === "review_request_whatsapp" ? [
+                    { value: s.rated ?? 0, label: "Rated" },
+                    { value: s.submitted ?? 0, label: "Submitted" },
                   ] : []),
                 ];
                 return (

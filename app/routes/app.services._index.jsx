@@ -28,6 +28,7 @@ const SERVICE_ICONS = {
   order_cancelled: "❌",
   order_paid: "💰",
   abandoned_checkout: "🛒",
+  review_request_whatsapp: "⭐",
 };
 
 // ==================== COMPONENT ====================

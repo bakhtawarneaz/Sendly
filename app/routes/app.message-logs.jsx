@@ -228,7 +228,7 @@ export default function MessageLogs() {
         <Text variant="bodySm" as="span">{log.serviceName}</Text>
       </IndexTable.Cell>
       <IndexTable.Cell>
-        <Badge tone="info">{log.templateName}</Badge>
+      {log.templateName ? <Badge tone="info">{log.templateName}</Badge> : <Text variant="bodySm" tone="subdued" as="span">—</Text>}
       </IndexTable.Cell>
       <IndexTable.Cell>
         {log.status === "failed" && log.errorInfo ? (

@@ -8,6 +8,10 @@ export async function loadSettings(session) {
     whatsappPhoneId: store?.whatsappPhoneId || "",
     whatsappBusinessId: store?.whatsappBusinessId || "",
     whatsappConnected: store?.whatsappConnected || false,
+    judgeMeApiToken: store?.judgeMeApiToken ? decrypt(store.judgeMeApiToken) : "",
+    judgeMeShopDomain: store?.judgeMeShopDomain || "",
+    reviewRequestDelayValue: store?.reviewRequestDelayValue ?? 3,
+    reviewRequestDelayUnit: store?.reviewRequestDelayUnit || "days",
     shopDomain: session.shop,
   };
 }

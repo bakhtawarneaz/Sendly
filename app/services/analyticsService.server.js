@@ -9,6 +9,7 @@ const SERVICE_GROUPS = [
   { key: "order_cancelled", label: "Cancel Order", color: "#dc2626" },
   { key: "order_delivered", label: "Delivered Order", color: "#16a34a" },
   { key: "abandoned_checkout", label: "Abandoned Order", color: "#ea580c" },
+  { key: "review_request_whatsapp", label: "Review Order", color: "#f59e0b" },
 ];
 
 export async function loadAnalytics(session, { dateFrom = "", dateTo = "", search = "" }) {
@@ -86,7 +87,14 @@ export async function loadAnalytics(session, { dateFrom = "", dateTo = "", searc
       stat.cancelled = cancelled;
       stat.noResponse = noResponse;
     }
-
+    if (group.key === "review_request_whatsapp") {
+      const [rated, submitted] = await Promise.all([
+        prisma.reviewRequest.count({ where: { storeId: store.id, createdAt: dateFilter, rating: { not: null } } }),
+        prisma.reviewRequest.count({ where: { storeId: store.id, createdAt: dateFilter, status: "submitted" } }),
+      ]);
+      stat.rated = rated;
+      stat.submitted = submitted;
+    }
     serviceStats.push(stat);
   }
 

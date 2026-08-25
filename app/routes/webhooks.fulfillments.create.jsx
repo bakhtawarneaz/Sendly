@@ -2,6 +2,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getStoreWithServices } from "../utils/helpers.server.js";
 import { processOrderNotification } from "../services/orderNotification.server.js";
+import { scheduleReviewRequest } from "../services/reviewRequest.server.js";
 
 async function fetchOrder(shop, orderId) {
   const session = await prisma.session.findFirst({
@@ -48,6 +49,8 @@ export const action = async ({ request }) => {
       serviceKey: "order_fulfillment",
       fulfillment,
     });
+
+    await scheduleReviewRequest({ shop, store, order });
   } catch (error) {
     console.error("Fulfillment create webhook error:", error);
   }

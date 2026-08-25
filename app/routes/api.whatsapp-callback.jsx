@@ -1,4 +1,4 @@
-import { processButtonReply, processStatusUpdate } from "../services/whatsappCallback.server.js";
+import { processButtonReply, processStatusUpdate, processReviewReply } from "../services/whatsappCallback.server.js";
 
 // GET — Meta webhook verification
 export const loader = async ({ request }) => {
@@ -23,15 +23,31 @@ export const action = async ({ request }) => {
         const phoneNumberId = change.value?.metadata?.phone_number_id || null;
         const messages = change.value?.messages || [];
         for (const msg of messages) {
+          const phone = msg.from || null;
+          const contextMessageId = msg.context?.id || null;
+          const listReplyId = msg.interactive?.list_reply?.id || null;
+          const buttonText = msg.button?.text || msg.interactive?.button_reply?.title || null;
+          const textBody = msg.type === "text" ? msg.text?.body : null;
+
+          const handledByReview = await processReviewReply({
+            contextMessageId,
+            phone,
+            phoneNumberId,
+            listReplyId,
+            buttonText,
+            textBody,
+          });
+          if (handledByReview) continue;
+
           if (msg.type === "button") {
             await processButtonReply({
-              contextMessageId: msg.context?.id,
+              contextMessageId,
               buttonText: msg.button?.text,
               phoneNumberId,
             });
           } else if (msg.type === "interactive" && msg.interactive?.type === "button_reply") {
             await processButtonReply({
-              contextMessageId: msg.context?.id,
+              contextMessageId,
               buttonText: msg.interactive.button_reply?.title,
               phoneNumberId,
             });

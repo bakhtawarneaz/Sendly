@@ -96,6 +96,54 @@ export async function sendTemplateMessage(store, template, customerPhone, variab
   };
 }
 
+export async function sendInteractiveListMessage(store, customerPhone, { bodyText, buttonText, sections, headerText = null, footerText = null }) {
+  const { decrypt } = await import("../utils/encryption.server.js");
+  const whatsappApiToken = decrypt(store.whatsappApiToken);
+  const whatsappPhoneId = store.whatsappPhoneId;
+
+  if (!whatsappApiToken || !whatsappPhoneId) {
+    throw new Error("WhatsApp credentials not configured");
+  }
+
+  const phone = customerPhone.replace(/[\s\-\+]/g, "");
+
+  const interactive = {
+    type: "list",
+    body: { text: bodyText },
+    action: { button: buttonText, sections },
+  };
+  if (headerText) interactive.header = { type: "text", text: headerText };
+  if (footerText) interactive.footer = { text: footerText };
+
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${whatsappPhoneId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${whatsappApiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: phone,
+        type: "interactive",
+        interactive,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error("WhatsApp API Error:", data.error);
+    throw new Error(`(#${data.error.code || "unknown"}) ${data.error.message || "Failed to send interactive message"}`);
+  }
+
+  return {
+    messageId: data.messages?.[0]?.id || null,
+  };
+}
+
 export async function sendTextMessage(store, customerPhone, text) {
   const { decrypt } = await import("../utils/encryption.server.js");
   const whatsappApiToken = decrypt(store.whatsappApiToken);
@@ -128,7 +176,7 @@ export async function sendTextMessage(store, customerPhone, text) {
 
   if (data.error) {
     throw new Error(data.error.message || "Failed to send text message");
-  }
+  } 
 
   return {
     messageId: data.messages?.[0]?.id || null,

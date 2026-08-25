@@ -37,6 +37,11 @@ const SERVICE_INFO = {
     description: "Recover lost sales by sending WhatsApp reminders to customers who abandoned their cart.",
     type: "abandoned_cart",
   },
+  review_request_whatsapp: {
+    name: "Review Request (WhatsApp)", icon: "⭐", color: "#f59e0b",
+    description: "Ask customers to rate their order 1-5 stars via WhatsApp after fulfillment.",
+    type: "review_request",
+  },
 
 };
 
@@ -131,6 +136,11 @@ export default function ServiceSettings() {
   const [expiryDays, setExpiryDays] = useState(config.expiryDays || 7);
   const [activeReminder, setActiveReminder] = useState("first");
 
+  const [judgeMeApiToken, setJudgeMeApiToken] = useState(config.judgeMeApiToken || "");
+  const [judgeMeShopDomain, setJudgeMeShopDomain] = useState(config.judgeMeShopDomain || "");
+  const [reviewDelayValue, setReviewDelayValue] = useState(config.reviewRequestDelayValue ?? 3);
+  const [reviewDelayUnit, setReviewDelayUnit] = useState(config.reviewRequestDelayUnit || "days");
+  const [showJudgeToken, setShowJudgeToken] = useState(false);
 
 
   useEffect(() => {
@@ -155,10 +165,10 @@ export default function ServiceSettings() {
     form.set("actionType", "save_config");
     form.set("templateId", useSeparateTemplates ? "" : templateId);
 
-    let extraConfig = {};
+    let extraConfig = {}; 
 
     if (serviceInfo.type === "advanced") {
-      extraConfig = {
+      extraConfig = { 
         paymentFilter,
         delayMinutes,
         includeImage,
@@ -178,6 +188,13 @@ export default function ServiceSettings() {
       };
     } else if (serviceInfo.type === "abandoned_cart") {
        extraConfig = { expiryDays, reminders };
+    } else if (serviceInfo.type === "review_request") {
+      extraConfig = {
+        judgeMeApiToken,
+        judgeMeShopDomain,
+        reviewRequestDelayValue: reviewDelayValue,
+        reviewRequestDelayUnit: reviewDelayUnit,
+      };
     }  else if (serviceInfo.type === "template_based") {
       extraConfig = {
         paymentFilter,
@@ -613,6 +630,65 @@ export default function ServiceSettings() {
                 </div>
               </div>
             )}
+          </div>
+        </>
+      )}
+
+      {/* ==================== REVIEW REQUEST (WhatsApp) ==================== */}
+        {serviceInfo.type === "review_request" && (
+        <>
+          <div className="svc-card">
+            <div className="svc-title">How it works</div>
+            <div className="svc-desc">
+              When an order is fulfilled, we wait the delay set below, then send the customer a WhatsApp message asking them to rate their order from 1 to 5 stars.
+            </div>
+          </div>
+
+          <div className="svc-card">
+            <div className="svc-title">Message Template</div>
+            <div className="svc-desc">Select which approved WhatsApp template to send as the review request.</div>
+            <label className="svc-label">Select Template</label>
+            <select className="svc-select" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+              <option value="">— Select a template —</option>
+              {templates.filter(t => t.status === "approved").map(t => (
+                <option key={t.id} value={t.id}>{t.displayName}</option>
+              ))}
+            </select>
+            {templates.filter(t => t.status === "approved").length === 0 && (
+              <div className="svc-hint" style={{ marginTop: "8px" }}>No approved templates found. <span style={{ color: "#005bd3", cursor: "pointer", fontWeight: "600" }} onClick={() => navigate("/app/templates/create")}>Create one →</span></div>
+            )}
+          </div>
+
+          <div className="svc-card">
+            <div className="svc-title">Send Delay</div>
+            <div className="svc-desc">How long after fulfillment to send the review request.</div>
+            <label className="svc-label">Send review request after fulfillment</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <input className="svc-input" type="number" value={reviewDelayValue} onChange={(e) => setReviewDelayValue(parseInt(e.target.value) || 0)} min="0" style={{ width: "100px" }} />
+              <select className="svc-select" value={reviewDelayUnit} onChange={(e) => setReviewDelayUnit(e.target.value)} style={{ width: "140px" }}>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="svc-card">
+            <div className="svc-title">Judge.me / Reviews</div>
+            <div className="svc-desc">Credentials used to submit reviews to Judge.me.</div>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label className="svc-label">Judge.me API Token</label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input className="svc-input" type={showJudgeToken ? "text" : "password"} value={judgeMeApiToken} onChange={(e) => setJudgeMeApiToken(e.target.value)} placeholder="Your Judge.me API token" style={{ flex: 1 }} />
+                <button type="button" onClick={() => setShowJudgeToken(!showJudgeToken)} style={{ padding: "0 14px", borderRadius: "8px", border: "1px solid #e3e3e3", background: "white", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>{showJudgeToken ? "Hide" : "Show"}</button>
+              </div>
+            </div>
+
+            <div>
+              <label className="svc-label">Judge.me Shop Domain</label>
+              <input className="svc-input" type="text" value={judgeMeShopDomain} onChange={(e) => setJudgeMeShopDomain(e.target.value)} placeholder="e.g. your-store.myshopify.com" />
+            </div>
           </div>
         </>
       )}

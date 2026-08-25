@@ -9,6 +9,7 @@ import prisma from "./db.server";
 import "./workers/abandonedCart.server.js";
 import "./workers/abandonedSync.server.js";
 import "./workers/orderMessage.server.js";
+import "./workers/reviewRequest.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,

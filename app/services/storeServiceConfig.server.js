@@ -51,6 +51,7 @@ const DEFAULT_CONFIGS = {
       third: { enabled: false, templateId: "", delay: "24_hours", discountCode: "", productImage: false },
     },
   },
+  review_request_whatsapp: {},
 };
 
 function getDefaultConfig(serviceKey) {
@@ -89,6 +90,14 @@ export async function loadServiceConfig(session, serviceKey) {
     config[key] = extraConfig[key] !== undefined ? extraConfig[key] : defaultVal;
   }
 
+  if (serviceKey === "review_request_whatsapp") {
+    const { decrypt } = await import("../utils/encryption.server.js");
+    config.judgeMeApiToken = store.judgeMeApiToken ? decrypt(store.judgeMeApiToken) : "";
+    config.judgeMeShopDomain = store.judgeMeShopDomain || "";
+    config.reviewRequestDelayValue = store.reviewRequestDelayValue ?? 3;
+    config.reviewRequestDelayUnit = store.reviewRequestDelayUnit || "days";
+  }
+
   return {
     error: null,
     store,
@@ -118,6 +127,25 @@ export async function saveServiceConfig(session, serviceKey, formData) {
   }
 
   const templateIdRaw = formData.get("templateId");
+
+  if (serviceKey === "review_request_whatsapp") {
+    const { encrypt } = await import("../utils/encryption.server.js");
+    const judgeMeApiToken = (extraConfig.judgeMeApiToken || "").trim();
+    await prisma.store.update({
+      where: { id: store.id },
+      data: {
+        judgeMeApiToken: judgeMeApiToken ? encrypt(judgeMeApiToken) : null,
+        judgeMeShopDomain: (extraConfig.judgeMeShopDomain || "").trim(),
+        reviewRequestDelayValue: parseInt(extraConfig.reviewRequestDelayValue) || 3,
+        reviewRequestDelayUnit: (extraConfig.reviewRequestDelayUnit || "days").trim(),
+      },
+    });
+
+    delete extraConfig.judgeMeApiToken;
+    delete extraConfig.judgeMeShopDomain;
+    delete extraConfig.reviewRequestDelayValue;
+    delete extraConfig.reviewRequestDelayUnit;
+  }
 
   await prisma.storeService.upsert({
     where: { storeId_serviceId: { storeId: store.id, serviceId: service.id } },

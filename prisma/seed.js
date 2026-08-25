@@ -33,6 +33,11 @@ const services = [
     name: "Abandoned Checkout Recovery",
     description: "Recover lost sales by sending WhatsApp reminders to customers who abandoned their cart.",
   },
+  {
+    serviceKey: "review_request_whatsapp",
+    name: "Review Request (WhatsApp)",
+    description: "Ask customers to rate their order 1-5 stars via WhatsApp after fulfillment.",
+  },
 ];
 
 async function main() {

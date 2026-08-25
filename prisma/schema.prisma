@@ -51,6 +51,11 @@ model Store {
   whatsappBusinessId String?
   whatsappConnected  Boolean         @default(false)
 
+  judgeMeApiToken         String?
+  judgeMeShopDomain       String?
+  reviewRequestDelayValue Int?       @default(3)
+  reviewRequestDelayUnit  String?    @default("days")
+
   isActive           Boolean         @default(true)
   installedAt        DateTime        @default(now())
   uninstalledAt      DateTime?
@@ -65,6 +70,7 @@ model Store {
   campaigns          Campaign[]
   campaignOrders     CampaignOrder[]
   abandonedCheckouts AbandonedCheckout[]
+  reviewRequests     ReviewRequest[]
 }
 
 // ==================== SERVICE ====================
@@ -323,6 +329,39 @@ model AbandonedReminder {
   @@unique([abandonedCheckoutId, reminderNumber])
   @@index([storeId, status])
   @@index([abandonedCheckoutId])
+}
+
+
+// ==================== REVIEW REQUEST ====================
+model ReviewRequest {
+  id                BigInt          @id @default(autoincrement())
+  storeId           BigInt
+
+  orderId           String
+  orderName         String?
+
+  productId         String?
+  productHandle     String?         // Judge.me needs one of these later
+
+  customerPhone     String?
+  customerName      String?
+  customerEmail     String?
+
+  status            String          @default("requested") // requested | rated | submitted | failed
+  rating            Int?
+  reviewText        String?
+
+  whatsappMessageId String?
+  requestedAt       DateTime?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  store             Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  // one review request per order per store — prevents duplicate sends
+  @@unique([storeId, orderId])
+  @@index([storeId, status])
 }
 
 
