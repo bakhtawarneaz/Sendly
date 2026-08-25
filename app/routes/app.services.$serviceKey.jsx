@@ -650,11 +650,11 @@ export default function ServiceSettings() {
             <label className="svc-label">Select Template</label>
             <select className="svc-select" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
               <option value="">— Select a template —</option>
-              {templates.filter(t => t.status === "approved").map(t => (
-                <option key={t.id} value={t.id}>{t.displayName}</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>{t.displayName} • {t.status.charAt(0).toUpperCase() + t.status.slice(1)}</option>
               ))}
             </select>
-            {templates.filter(t => t.status === "approved").length === 0 && (
+            {templates.length === 0 && (
               <div className="svc-hint" style={{ marginTop: "8px" }}>No approved templates found. <span style={{ color: "#005bd3", cursor: "pointer", fontWeight: "600" }} onClick={() => navigate("/app/templates/create")}>Create one →</span></div>
             )}
           </div>
