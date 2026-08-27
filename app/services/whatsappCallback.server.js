@@ -168,6 +168,28 @@ export async function processReviewReply({ contextMessageId, phone, phoneNumberI
 
   const cleanPhone = (phone || "").replace(/[\s\-\+]/g, "");
 
+  const openReview = await prisma.reviewRequest.findFirst({
+    where: {
+      customerPhone: cleanPhone,
+      status: { in: ["rating_sent", "rated"] },
+      ...(store ? { storeId: store.id } : {}),
+    },
+    orderBy: { id: "desc" },
+    include: { store: true },
+  });
+  if (openReview && !store) store = openReview.store;
+
+  if (listReplyId && listReplyId.startsWith("review_rating_") && openReview && openReview.status === "rating_sent") {
+    const rating = parseInt(listReplyId.replace("review_rating_", ""), 10) || 5;
+    await handleRatingReply(store, openReview, rating);
+    return true;
+  }
+
+  if (textBody && openReview && openReview.status === "rated") {
+    await handleReviewText(store, openReview, textBody.trim());
+    return true;
+  }
+
   if (contextMessageId) {
     const rr = await prisma.reviewRequest.findFirst({
       where: {
@@ -178,35 +200,11 @@ export async function processReviewReply({ contextMessageId, phone, phoneNumberI
     });
     if (rr) {
       if (!store) store = rr.store;
-      if (rr.status === "requested" || rr.status === "rating_sent") {
+      if (rr.status === "requested") {
         await sendRatingList(store, rr);
         return true;
       }
     }
-  }
-
-  const openReview = await prisma.reviewRequest.findFirst({
-    where: {
-      customerPhone: cleanPhone,
-      status: { in: ["rating_sent", "rated"] },
-      ...(store ? { storeId: store.id } : {}),
-    },
-    orderBy: { id: "desc" },
-    include: { store: true },
-  });
-  if (!openReview) return false;
-  if (!store) store = openReview.store;
-
-
-  if (listReplyId && listReplyId.startsWith("review_rating_") && openReview.status === "rating_sent") {
-    const rating = parseInt(listReplyId.replace("review_rating_", ""), 10) || 5;
-    await handleRatingReply(store, openReview, rating);
-    return true;
-  }
-
-  if (textBody && openReview.status === "rated") {
-    await handleReviewText(store, openReview, textBody.trim());
-    return true;
   }
 
   return false;
